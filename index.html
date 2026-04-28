@@ -108,24 +108,21 @@
         // --- DEFAULT SCHEMA ---
         const DEFAULT_DB = {
             version: '1.1',
-            skus: [], // { id, name, category, description, type: 'serialized' | 'bulk' }
-            items: [], // { id, skuId, status, locationId, parentId, serial, quantity, lastVerified, locationHistory: [{locationId, timestamp}] }
+            skus: [], 
+            items: [], 
             locations: [{ id: 'loc-root', name: 'Main Warehouse', parentId: null }],
             categories: ['Uncategorized', 'Tools', 'Electronics', 'Containers', 'Consumables'],
             statuses: ['Available', 'In Use', 'Maintenance', 'Missing', 'Retired'],
-            logs: [] // { id, timestamp, action, type }
+            logs: [] 
         };
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
-            // State
             const [fileHandle, setFileHandle] = useState(null);
             const [db, setDb] = useState(null);
             const [currentView, setCurrentView] = useState('dashboard');
             const [toast, setToast] = useState(null);
-            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-            // Toast Management
             const showToast = useCallback((msg, type = 'success') => {
                 setToast({ msg, type, id: Date.now() });
                 setTimeout(() => setToast(null), 3000);
@@ -653,7 +650,6 @@
             const topLevelItems = enrichedItems.filter(i => !i.parentId);
             const hasKitChildren = (itemId) => enrichedItems.some(i => i.parentId === itemId);
 
-            // Recursive Tree Node for Kit Contents
             const KitTreeNode = ({ item, depth = 0 }) => {
                 const children = enrichedItems.filter(i => i.parentId === item.id);
                 return (
@@ -679,6 +675,87 @@
                     </div>
                 );
             };
+
+            const renderInspectionContent = (inspectionItem) => (
+                <>
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                            <Icons.Info className="w-6 h-6 text-indigo-400"/>
+                        </div>
+                        <button onClick={() => setInspectionItem(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
+                    </div>
+                    
+                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{inspectionItem.sku?.name}</h2>
+                    <p className="text-sm text-zinc-400 mb-6">{inspectionItem.sku?.description}</p>
+
+                    <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[inspectionItem.status] || ''}`}>{inspectionItem.status}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Map className="w-4 h-4"/> Location</span>
+                            <span className="font-medium text-white">{inspectionItem.location?.name || 'Unassigned'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
+                            <span className="font-mono text-zinc-300">{inspectionItem.serial || 'N/A'}</span>
+                        </div>
+                        {inspectionItem.parent && (
+                            <div className="flex justify-between items-center py-1 mt-2 pt-2 border-t border-zinc-800 cursor-pointer group" onClick={() => setInspectionItem(inspectionItem.parent)}>
+                                <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Kit Parent</span>
+                                <span className="font-medium text-indigo-400 group-hover:underline flex items-center gap-1">{inspectionItem.parent.sku?.name} <Icons.ChevronRight className="w-3 h-3"/></span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Kit Contents Tree */}
+                    {hasKitChildren(inspectionItem.id) && (
+                        <div className="mb-6">
+                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Nested Kit Tree</h3>
+                            <div className="bg-zinc-900/30 rounded-xl p-2 border border-zinc-800/50">
+                                {enrichedItems.filter(i => i.parentId === inspectionItem.id).map(child => (
+                                    <KitTreeNode key={child.id} item={child} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Location History */}
+                    {inspectionItem.serial && inspectionItem.locationHistory && inspectionItem.locationHistory.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Clock className="w-4 h-4"/> Tracking History</h3>
+                            <div className="space-y-3 border-l-2 border-zinc-800 ml-2 pl-4">
+                                {inspectionItem.locationHistory.slice().reverse().map((hist, idx) => {
+                                    const locName = db.locations.find(l => l.id === hist.locationId)?.name || 'Unknown';
+                                    return (
+                                        <div key={idx} className="relative">
+                                            <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-[#18181b]"></div>
+                                            <p className="text-sm text-zinc-200 font-medium">{locName}</p>
+                                            <p className="text-[10px] text-zinc-500">{new Date(hist.timestamp).toLocaleString()}</p>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mb-6 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+                            <Icons.ShieldCheck className="w-4 h-4 text-emerald-500"/>
+                            Verified: {getRelativeTime(inspectionItem.lastVerified || Date.now())}
+                        </div>
+                        <button onClick={() => handleVerify(inspectionItem.id)} className="w-full py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors font-medium text-sm flex justify-center items-center gap-2">
+                            <Icons.Check className="w-4 h-4"/> Confirm Presence
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => { setEditingItem(inspectionItem); setIsModalOpen(true); }} className="flex-1 glass bg-zinc-800/50 hover:bg-zinc-700/50 py-2.5 rounded-xl text-sm font-medium transition-colors">Edit</button>
+                        <button onClick={() => handleDelete(inspectionItem.id)} className="flex-1 glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2"><Icons.Trash className="w-4 h-4"/> Delete</button>
+                    </div>
+                </>
+            );
 
             return (
                 <div className="animate-fade-in flex gap-6">
@@ -728,88 +805,23 @@
                         </div>
                     </div>
 
-                    {/* Inspection Panel */}
+                    {/* Inspection Panel Logic */}
                     {inspectionItem && (
-                        <div className="hidden lg:block w-[340px] shrink-0">
-                            <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                                        <Icons.Info className="w-6 h-6 text-indigo-400"/>
-                                    </div>
-                                    <button onClick={() => setInspectionItem(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
-                                </div>
-                                
-                                <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{inspectionItem.sku?.name}</h2>
-                                <p className="text-sm text-zinc-400 mb-6">{inspectionItem.sku?.description}</p>
-
-                                <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
-                                    <div className="flex justify-between items-center py-1">
-                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
-                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[inspectionItem.status] || ''}`}>{inspectionItem.status}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Map className="w-4 h-4"/> Location</span>
-                                        <span className="font-medium text-white">{inspectionItem.location?.name || 'Unassigned'}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center py-1">
-                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
-                                        <span className="font-mono text-zinc-300">{inspectionItem.serial || 'N/A'}</span>
-                                    </div>
-                                    {inspectionItem.parent && (
-                                        <div className="flex justify-between items-center py-1 mt-2 pt-2 border-t border-zinc-800 cursor-pointer group" onClick={() => setInspectionItem(inspectionItem.parent)}>
-                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Kit Parent</span>
-                                            <span className="font-medium text-indigo-400 group-hover:underline flex items-center gap-1">{inspectionItem.parent.sku?.name} <Icons.ChevronRight className="w-3 h-3"/></span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Kit Contents Tree */}
-                                {hasKitChildren(inspectionItem.id) && (
-                                    <div className="mb-6">
-                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Nested Kit Tree</h3>
-                                        <div className="bg-zinc-900/30 rounded-xl p-2 border border-zinc-800/50">
-                                            {enrichedItems.filter(i => i.parentId === inspectionItem.id).map(child => (
-                                                <KitTreeNode key={child.id} item={child} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Location History */}
-                                {inspectionItem.serial && inspectionItem.locationHistory && inspectionItem.locationHistory.length > 0 && (
-                                    <div className="mb-6">
-                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Clock className="w-4 h-4"/> Tracking History</h3>
-                                        <div className="space-y-3 border-l-2 border-zinc-800 ml-2 pl-4">
-                                            {inspectionItem.locationHistory.slice().reverse().map((hist, idx) => {
-                                                const locName = db.locations.find(l => l.id === hist.locationId)?.name || 'Unknown';
-                                                return (
-                                                    <div key={idx} className="relative">
-                                                        <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-[#18181b]"></div>
-                                                        <p className="text-sm text-zinc-200 font-medium">{locName}</p>
-                                                        <p className="text-[10px] text-zinc-500">{new Date(hist.timestamp).toLocaleString()}</p>
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="mb-6 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
-                                    <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
-                                        <Icons.ShieldCheck className="w-4 h-4 text-emerald-500"/>
-                                        Verified: {getRelativeTime(inspectionItem.lastVerified || Date.now())}
-                                    </div>
-                                    <button onClick={() => handleVerify(inspectionItem.id)} className="w-full py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors font-medium text-sm flex justify-center items-center gap-2">
-                                        <Icons.Check className="w-4 h-4"/> Confirm Presence
-                                    </button>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <button onClick={() => { setEditingItem(inspectionItem); setIsModalOpen(true); }} className="flex-1 glass bg-zinc-800/50 hover:bg-zinc-700/50 py-2.5 rounded-xl text-sm font-medium transition-colors">Edit</button>
-                                    <button onClick={() => handleDelete(inspectionItem.id)} className="flex-1 glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2"><Icons.Trash className="w-4 h-4"/> Delete</button>
+                        <>
+                            {/* Desktop Panel */}
+                            <div className="hidden lg:block w-[340px] shrink-0">
+                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
+                                    {renderInspectionContent(inspectionItem)}
                                 </div>
                             </div>
-                        </div>
+
+                            {/* Mobile Bottom-Sheet Modal Fallback */}
+                            <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-fade-in pb-16">
+                                <div className="glass-panel w-full rounded-t-3xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto no-scrollbar border-t border-zinc-800/50">
+                                    {renderInspectionContent(inspectionItem)}
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     {/* Modal (Add/Edit) */}
@@ -917,6 +929,89 @@
             const inspectedLocItems = inspectionLoc ? enrichedItems.filter(i => i.locationId === inspectionLoc.id && !i.parentId) : [];
             const fullInspectedItem = inspectedItem ? enrichedItems.find(i => i.id === inspectedItem.id) : null;
 
+            const renderTopologyPanelContent = () => {
+                if (fullInspectedItem) {
+                    return (
+                        <>
+                            <button onClick={() => setInspectedItem(null)} className="w-full flex items-center justify-center gap-2 mb-6 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 py-2 rounded-xl transition-colors text-sm font-medium">
+                                <Icons.ArrowLeft className="w-4 h-4"/> Back to Location
+                            </button>
+                            
+                            <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{fullInspectedItem.sku?.name}</h2>
+                            <p className="text-sm text-zinc-400 mb-6">{fullInspectedItem.sku?.description}</p>
+                            
+                            <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
+                                <div className="flex justify-between items-center py-1">
+                                    <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[fullInspectedItem.status] || ''}`}>{fullInspectedItem.status}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-1">
+                                    <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
+                                    <span className="font-mono text-zinc-300">{fullInspectedItem.serial || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between items-center py-1">
+                                    <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Quantity</span>
+                                    <span className="font-mono text-zinc-300">{fullInspectedItem.quantity}</span>
+                                </div>
+                            </div>
+
+                            {/* Sub-Items Tree just for viewing */}
+                            {enrichedItems.some(i => i.parentId === fullInspectedItem.id) && (
+                                <div className="mb-6">
+                                    <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Contains</h3>
+                                    <div className="bg-zinc-900/30 rounded-xl p-3 border border-zinc-800/50">
+                                        {enrichedItems.filter(i => i.parentId === fullInspectedItem.id).map(child => (
+                                            <div key={child.id} className="flex items-center gap-2 text-sm text-zinc-300 mb-1 last:mb-0"><Icons.Box className="w-3 h-3 text-zinc-500"/> {child.sku?.name} (x{child.quantity})</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    );
+                }
+
+                if (inspectionLoc) {
+                    return (
+                        <div className="flex flex-col h-full">
+                            <div className="flex justify-between items-start mb-6 shrink-0">
+                                <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center border border-zinc-800">
+                                    <Icons.Map className="w-6 h-6 text-zinc-400"/>
+                                </div>
+                                <button onClick={() => setInspectionLoc(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
+                            </div>
+                            
+                            <h2 className="text-xl font-bold mb-1 shrink-0">{inspectionLoc.name}</h2>
+                            {inspectionLoc.parentId && <p className="text-sm text-zinc-500 mb-6 flex items-center gap-1 shrink-0"><Icons.CornerDownRight className="w-4 h-4"/> In: {db.locations.find(l=>l.id===inspectionLoc.parentId)?.name}</p>}
+
+                            <div className="mb-6 flex-1 min-h-0">
+                                <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Box className="w-4 h-4"/> Stored Assets ({inspectedLocItems.length})</h3>
+                                {inspectedLocItems.length === 0 ? (
+                                    <div className="text-sm text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50 text-center"><Icons.Info className="w-6 h-6 mx-auto mb-2 opacity-50"/> Location is empty</div>
+                                ) : (
+                                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2 no-scrollbar">
+                                        {inspectedLocItems.map(item => (
+                                            <div key={item.id} onClick={() => setInspectedItem(item)} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/50 hover:border-indigo-500/30 cursor-pointer transition-colors group">
+                                                {item.sku?.type === 'bulk' ? <Icons.Layers className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/> : <Icons.Hash className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/>}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-zinc-200 truncate">{item.sku?.name}</p>
+                                                    {item.serial && <p className="text-[10px] text-zinc-500 font-mono">{item.serial}</p>}
+                                                </div>
+                                                <Icons.ChevronRight className="w-4 h-4 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <button onClick={() => handleDeleteLocation(inspectionLoc.id)} className="w-full glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 mt-auto shrink-0">
+                                <Icons.Trash className="w-4 h-4"/> Delete Node
+                            </button>
+                        </div>
+                    );
+                }
+                return null;
+            };
+
             return (
                 <div className="animate-fade-in flex gap-6">
                     <div className="flex-1 max-w-3xl">
@@ -936,85 +1031,23 @@
                         </div>
                     </div>
 
-                    {/* Inspection Panel Logic */}
+                    {/* Inspection Panel Logic - Cross Platform */}
                     {(inspectionLoc || fullInspectedItem) && (
-                        <div className="hidden lg:block w-80 shrink-0">
-                            {fullInspectedItem ? (
-                                // --- ITEM INSPECTION OVERLAY ---
-                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
-                                    <button onClick={() => setInspectedItem(null)} className="w-full flex items-center justify-center gap-2 mb-6 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 py-2 rounded-xl transition-colors text-sm font-medium">
-                                        <Icons.ArrowLeft className="w-4 h-4"/> Back to Location
-                                    </button>
-                                    
-                                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{fullInspectedItem.sku?.name}</h2>
-                                    <p className="text-sm text-zinc-400 mb-6">{fullInspectedItem.sku?.description}</p>
-                                    
-                                    <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
-                                        <div className="flex justify-between items-center py-1">
-                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[fullInspectedItem.status] || ''}`}>{fullInspectedItem.status}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-1">
-                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
-                                            <span className="font-mono text-zinc-300">{fullInspectedItem.serial || 'N/A'}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center py-1">
-                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Quantity</span>
-                                            <span className="font-mono text-zinc-300">{fullInspectedItem.quantity}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Sub-Items Tree just for viewing */}
-                                    {enrichedItems.some(i => i.parentId === fullInspectedItem.id) && (
-                                        <div className="mb-6">
-                                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Contains</h3>
-                                            <div className="bg-zinc-900/30 rounded-xl p-3 border border-zinc-800/50">
-                                                {enrichedItems.filter(i => i.parentId === fullInspectedItem.id).map(child => (
-                                                    <div key={child.id} className="flex items-center gap-2 text-sm text-zinc-300 mb-1 last:mb-0"><Icons.Box className="w-3 h-3 text-zinc-500"/> {child.sku?.name} (x{child.quantity})</div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                        <>
+                            {/* Desktop Panel */}
+                            <div className="hidden lg:block w-80 shrink-0">
+                                <div className={`glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl ${fullInspectedItem ? 'border-indigo-500/10' : 'border-zinc-800'}`}>
+                                    {renderTopologyPanelContent()}
                                 </div>
-                            ) : (
-                                // --- LOCATION INSPECTION ---
-                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-zinc-800">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center border border-zinc-800">
-                                            <Icons.Map className="w-6 h-6 text-zinc-400"/>
-                                        </div>
-                                        <button onClick={() => setInspectionLoc(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
-                                    </div>
-                                    
-                                    <h2 className="text-xl font-bold mb-1">{inspectionLoc.name}</h2>
-                                    {inspectionLoc.parentId && <p className="text-sm text-zinc-500 mb-6 flex items-center gap-1"><Icons.CornerDownRight className="w-4 h-4"/> In: {db.locations.find(l=>l.id===inspectionLoc.parentId)?.name}</p>}
+                            </div>
 
-                                    <div className="mb-6">
-                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Box className="w-4 h-4"/> Stored Assets ({inspectedLocItems.length})</h3>
-                                        {inspectedLocItems.length === 0 ? (
-                                            <div className="text-sm text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50 text-center"><Icons.Info className="w-6 h-6 mx-auto mb-2 opacity-50"/> Location is empty</div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {inspectedLocItems.map(item => (
-                                                    <div key={item.id} onClick={() => setInspectedItem(item)} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/50 hover:border-indigo-500/30 cursor-pointer transition-colors group">
-                                                        {item.sku?.type === 'bulk' ? <Icons.Layers className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/> : <Icons.Hash className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/>}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm text-zinc-200 truncate">{item.sku?.name}</p>
-                                                            {item.serial && <p className="text-[10px] text-zinc-500 font-mono">{item.serial}</p>}
-                                                        </div>
-                                                        <Icons.ChevronRight className="w-4 h-4 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity"/>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <button onClick={() => handleDeleteLocation(inspectionLoc.id)} className="w-full glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 mt-auto">
-                                        <Icons.Trash className="w-4 h-4"/> Delete Node
-                                    </button>
+                            {/* Mobile Bottom-Sheet Modal Fallback */}
+                            <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-fade-in pb-16">
+                                <div className="glass-panel w-full rounded-t-3xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto no-scrollbar border-t border-zinc-800/50 flex flex-col">
+                                    {renderTopologyPanelContent()}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        </>
                     )}
 
                     {isModalOpen && (
