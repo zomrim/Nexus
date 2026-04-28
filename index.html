@@ -169,11 +169,31 @@
                 }
             };
 
+            // Mobile/Fallback Legacy Import
+            const handleLegacyUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if (!parsed.items || !parsed.skus) throw new Error("Invalid format");
+                        setDb({ ...DEFAULT_DB, ...parsed });
+                        setFileHandle({ name: file.name, legacy: true });
+                        showToast('Database loaded (Mobile Mode)');
+                    } catch (err) {
+                        showToast('Invalid JSON file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+
             const updateDb = async (updaterFunction) => {
                 const newDb = updaterFunction({ ...db });
                 setDb(newDb);
                 
-                if (fileHandle) {
+                // Only attempt auto-save if we have a real file handle (not legacy mobile fallback)
+                if (fileHandle && !fileHandle.legacy) {
                     try {
                         const writable = await fileHandle.createWritable();
                         await writable.write(JSON.stringify(newDb, null, 2));
@@ -192,19 +212,9 @@
             };
 
             // --- VIEW RENDERER ---
-            if (!window.showOpenFilePicker) {
-                return (
-                    <div className="flex items-center justify-center h-screen p-6 text-center">
-                        <div className="glass-panel p-8 rounded-3xl max-w-md">
-                            <Icons.Alert className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                            <h2 className="text-2xl font-bold mb-2">Unsupported Browser</h2>
-                            <p className="text-zinc-400">Nexus requires the modern File System Access API. Please use Google Chrome, Microsoft Edge, or Opera on a desktop.</p>
-                        </div>
-                    </div>
-                );
-            }
-
             if (!db) {
+                const isModern = !!window.showOpenFilePicker;
+
                 return (
                     <div className="flex items-center justify-center h-screen bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIwLjAyIiAvPgo8Y2lyY2xlIGN4PSIwIiBjeT0iMCIgcj0iMSIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIwLjEiIC8+Cjwvc3ZnPg==')]">
                         <div className="glass-panel p-10 rounded-3xl max-w-lg w-full mx-4 shadow-2xl border border-zinc-700/50 relative overflow-hidden">
@@ -216,31 +226,68 @@
                             <p className="text-zinc-400 mb-8 text-lg">Local-first Inventory Management.</p>
                             
                             <div className="space-y-4">
-                                <button onClick={openDatabase} className="w-full glass bg-zinc-800/50 hover:bg-zinc-700/50 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-2 bg-zinc-700/50 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
-                                            <Icons.Layers className="w-5 h-5 group-hover:text-indigo-400" />
+                                {isModern ? (
+                                    <React.Fragment>
+                                        <button onClick={openDatabase} className="w-full glass bg-zinc-800/50 hover:bg-zinc-700/50 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2 bg-zinc-700/50 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+                                                    <Icons.Layers className="w-5 h-5 group-hover:text-indigo-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg">Open Database</div>
+                                                    <div className="text-zinc-400 text-sm">Load an existing Nexus .json file</div>
+                                                </div>
+                                            </div>
+                                            <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
+                                        </button>
+                                        
+                                        <button onClick={createDatabase} className="w-full glass bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/30 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2 bg-indigo-500/20 rounded-lg group-hover:bg-indigo-500/40 transition-colors">
+                                                    <Icons.Plus className="w-5 h-5 text-indigo-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg text-indigo-300">Create New</div>
+                                                    <div className="text-zinc-400 text-sm">Start a fresh inventory file</div>
+                                                </div>
+                                            </div>
+                                            <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-indigo-300 transition-colors" />
+                                        </button>
+                                    </React.Fragment>
+                                ) : (
+                                    <React.Fragment>
+                                        <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl mb-4 text-sm text-amber-400">
+                                            <Icons.Alert className="w-5 h-5 inline mr-2"/>
+                                            Mobile Mode: Auto-save disabled. Remember to export backups from Settings!
                                         </div>
-                                        <div className="text-left">
-                                            <div className="font-semibold text-lg">Open Database</div>
-                                            <div className="text-zinc-400 text-sm">Load an existing Nexus .json file</div>
-                                        </div>
-                                    </div>
-                                    <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
-                                </button>
-                                
-                                <button onClick={createDatabase} className="w-full glass bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/30 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-2 bg-indigo-500/20 rounded-lg group-hover:bg-indigo-500/40 transition-colors">
-                                            <Icons.Plus className="w-5 h-5 text-indigo-400" />
-                                        </div>
-                                        <div className="text-left">
-                                            <div className="font-semibold text-lg text-indigo-300">Create New</div>
-                                            <div className="text-zinc-400 text-sm">Start a fresh inventory file</div>
-                                        </div>
-                                    </div>
-                                    <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-indigo-300 transition-colors" />
-                                </button>
+                                        <label className="w-full glass bg-zinc-800/50 hover:bg-zinc-700/50 text-white p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2 bg-zinc-700/50 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+                                                    <Icons.Layers className="w-5 h-5 group-hover:text-indigo-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg">Import Database</div>
+                                                    <div className="text-zinc-400 text-sm">Load a .json file</div>
+                                                </div>
+                                            </div>
+                                            <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
+                                            <input type="file" accept=".json" className="hidden" onChange={handleLegacyUpload} />
+                                        </label>
+                                        
+                                        <button onClick={() => { setDb(DEFAULT_DB); setFileHandle({name: 'Mobile_DB.json', legacy: true}); }} className="w-full glass bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/30 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-2 bg-indigo-500/20 rounded-lg group-hover:bg-indigo-500/40 transition-colors">
+                                                    <Icons.Plus className="w-5 h-5 text-indigo-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-semibold text-lg text-indigo-300">Create New</div>
+                                                    <div className="text-zinc-400 text-sm">Start a fresh inventory file</div>
+                                                </div>
+                                            </div>
+                                            <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-indigo-300 transition-colors" />
+                                        </button>
+                                    </React.Fragment>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -275,7 +322,7 @@
                             ))}
                         </nav>
                         <div className="p-4 m-4 glass rounded-xl flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <div className={`w-2 h-2 rounded-full ${fileHandle?.legacy ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`}></div>
                             <div className="text-xs text-zinc-400 truncate">
                                 Sync: {fileHandle ? fileHandle.name : 'Unknown'}
                             </div>
@@ -829,7 +876,7 @@
         const TopologyView = ({ db, updateDb, showToast, logAction }) => {
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [inspectionLoc, setInspectionLoc] = useState(null);
-            const [inspectedItem, setInspectedItem] = useState(null); // Overlays the location inspection
+            const [inspectedItem, setInspectedItem] = useState(null);
             
             const handleSave = (e) => {
                 e.preventDefault();
@@ -1130,6 +1177,15 @@
                 showToast('Status Tag Deleted');
             };
 
+            const handleManualExport = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
+                const a = document.createElement('a');
+                a.href = dataStr;
+                a.download = `nexus_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                showToast('JSON Backup Exported');
+            };
+
             return (
                 <div className="animate-fade-in max-w-2xl">
                     <header className="mb-8">
@@ -1138,6 +1194,20 @@
                     </header>
 
                     <div className="space-y-6">
+
+                        <div className="glass-panel p-6 rounded-3xl border border-zinc-800/50">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-semibold flex items-center gap-2"><Icons.Database className="w-5 h-5 text-zinc-400"/> Data Backup & Export</h2>
+                            </div>
+                            <p className="text-sm text-zinc-500 mb-4">
+                                Download a manual `.json` copy of your entire inventory database.
+                                {!window.showOpenFilePicker && <span className="text-amber-400 block mt-2 font-medium">Note: You are currently on a mobile browser. Auto-save is disabled. You must click this button frequently to save your changes to your device.</span>}
+                            </p>
+                            <button onClick={handleManualExport} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 w-fit">
+                                <Icons.Layers className="w-4 h-4"/> Export JSON Backup
+                            </button>
+                        </div>
+
                         <div className="glass-panel p-6 rounded-3xl border border-zinc-800/50">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-semibold flex items-center gap-2"><Icons.Layers className="w-5 h-5 text-zinc-400"/> Classification Categories</h2>
@@ -1172,9 +1242,9 @@
                         
                         <div className="glass-panel p-6 rounded-3xl border border-red-500/20 bg-red-500/5">
                             <h2 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2"><Icons.Alert className="w-5 h-5"/> Danger Zone</h2>
-                            <p className="text-sm text-zinc-500 mb-4">Actions here are destructive and write directly to your local JSON file.</p>
+                            <p className="text-sm text-zinc-500 mb-4">Actions here are destructive and wipe your memory context.</p>
                             <button onClick={() => {
-                                if(confirm("Are you sure? This will wipe the database clean. The local file will be overwritten.")) {
+                                if(confirm("Are you sure? This will wipe the database clean.")) {
                                     updateDb(() => DEFAULT_DB);
                                     showToast('Database reset to defaults');
                                 }
