@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus | Inventory Management</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' },
+                        zinc: { 850: '#202022', 900: '#18181b', 950: '#09090b' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Soft Industrial & Glassmorphism Utilities */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #f4f4f5; overscroll-behavior-y: none; }
+        
+        .glass { background: rgba(39, 39, 42, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-panel { background: rgba(24, 24, 27, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease; }
+        .glass-card:hover { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 99px; border: 2px solid #09090b; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+        /* Hide scrollbar for clean UI but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback } = React;
+
+        // --- ICONS (Zero-Dependency SVG Components) ---
+        const Icons = {
+            Database: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>,
+            Home: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+            Box: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+            Layers: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+            Map: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>,
+            Search: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+            Settings: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Plus: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            X: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            Alert: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+            Check: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="20 6 9 17 4 12"/></svg>,
+            ChevronRight: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="9 18 15 12 9 6"/></svg>,
+            Activity: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+            ShieldCheck: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>,
+            Trash: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+            Clock: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Hash: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>,
+            CornerDownRight: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg>,
+            Table: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg>,
+            Tag: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
+            ArrowLeft: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+            Info: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        };
+
+        // --- UTILS ---
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+        const getRelativeTime = (timestamp) => {
+            const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+            const daysDifference = Math.round((timestamp - Date.now()) / (1000 * 60 * 60 * 24));
+            if (daysDifference === 0) {
+                const hours = Math.round((timestamp - Date.now()) / (1000 * 60 * 60));
+                if (hours === 0) {
+                    const mins = Math.round((timestamp - Date.now()) / (1000 * 60));
+                    return mins === 0 ? 'Just now' : rtf.format(mins, 'minute');
+                }
+                return rtf.format(hours, 'hour');
+            }
+            return rtf.format(daysDifference, 'day');
+        };
+
+        // Status Colors Mapping
+        const statusColors = {
+            'Available': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+            'In Use': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+            'Maintenance': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+            'Missing': 'bg-red-500/10 text-red-400 border-red-500/20',
+            'Retired': 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+        };
+
+        // --- DEFAULT SCHEMA ---
+        const DEFAULT_DB = {
+            version: '1.1',
+            skus: [], // { id, name, category, description, type: 'serialized' | 'bulk' }
+            items: [], // { id, skuId, status, locationId, parentId, serial, quantity, lastVerified, locationHistory: [{locationId, timestamp}] }
+            locations: [{ id: 'loc-root', name: 'Main Warehouse', parentId: null }],
+            categories: ['Uncategorized', 'Tools', 'Electronics', 'Containers', 'Consumables'],
+            statuses: ['Available', 'In Use', 'Maintenance', 'Missing', 'Retired'],
+            logs: [] // { id, timestamp, action, type }
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            // State
+            const [fileHandle, setFileHandle] = useState(null);
+            const [db, setDb] = useState(null);
+            const [currentView, setCurrentView] = useState('dashboard');
+            const [toast, setToast] = useState(null);
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+            // Toast Management
+            const showToast = useCallback((msg, type = 'success') => {
+                setToast({ msg, type, id: Date.now() });
+                setTimeout(() => setToast(null), 3000);
+            }, []);
+
+            // --- FILE SYSTEM LOGIC ---
+            const openDatabase = async () => {
+                try {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{ description: 'Nexus Database File', accept: { 'application/json': ['.json'] } }],
+                    });
+                    const file = await handle.getFile();
+                    const contents = await file.text();
+                    const parsed = JSON.parse(contents);
+                    
+                    if (!parsed.items || !parsed.skus) throw new Error("Invalid database format");
+                    setDb({ ...DEFAULT_DB, ...parsed }); 
+                    setFileHandle(handle);
+                    showToast('Database connected successfully');
+                } catch (err) {
+                    if (err.name !== 'AbortError') showToast(err.message || 'Failed to open file', 'error');
+                }
+            };
+
+            const createDatabase = async () => {
+                try {
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: 'nexus_database.json',
+                        types: [{ description: 'JSON File', accept: { 'application/json': ['.json'] } }],
+                    });
+                    
+                    const writable = await handle.createWritable();
+                    await writable.write(JSON.stringify(DEFAULT_DB, null, 2));
+                    await writable.close();
+                    
+                    setDb(DEFAULT_DB);
+                    setFileHandle(handle);
+                    showToast('New database created');
+                } catch (err) {
+                    if (err.name !== 'AbortError') showToast('Failed to create file', 'error');
+                }
+            };
+
+            const updateDb = async (updaterFunction) => {
+                const newDb = updaterFunction({ ...db });
+                setDb(newDb);
+                
+                if (fileHandle) {
+                    try {
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(JSON.stringify(newDb, null, 2));
+                        await writable.close();
+                    } catch (err) {
+                        showToast('Auto-save failed. Check permissions.', 'error');
+                    }
+                }
+            };
+
+            const logAction = (action, type = 'info') => {
+                return (currentDb) => {
+                    const logs = [{ id: generateId(), timestamp: Date.now(), action, type }, ...currentDb.logs].slice(0, 100);
+                    return { ...currentDb, logs };
+                }
+            };
+
+            // --- VIEW RENDERER ---
+            if (!window.showOpenFilePicker) {
+                return (
+                    <div className="flex items-center justify-center h-screen p-6 text-center">
+                        <div className="glass-panel p-8 rounded-3xl max-w-md">
+                            <Icons.Alert className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                            <h2 className="text-2xl font-bold mb-2">Unsupported Browser</h2>
+                            <p className="text-zinc-400">Nexus requires the modern File System Access API. Please use Google Chrome, Microsoft Edge, or Opera on a desktop.</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!db) {
+                return (
+                    <div className="flex items-center justify-center h-screen bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIwLjAyIiAvPgo8Y2lyY2xlIGN4PSIwIiBjeT0iMCIgcj0iMSIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIwLjEiIC8+Cjwvc3ZnPg==')]">
+                        <div className="glass-panel p-10 rounded-3xl max-w-lg w-full mx-4 shadow-2xl border border-zinc-700/50 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                            <div className="flex items-center justify-center w-16 h-16 bg-indigo-500/20 rounded-2xl mb-6">
+                                <Icons.Database className="w-8 h-8 text-indigo-400" />
+                            </div>
+                            <h1 className="text-4xl font-bold tracking-tight mb-2">Nexus</h1>
+                            <p className="text-zinc-400 mb-8 text-lg">Local-first Inventory Management.</p>
+                            
+                            <div className="space-y-4">
+                                <button onClick={openDatabase} className="w-full glass bg-zinc-800/50 hover:bg-zinc-700/50 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-2 bg-zinc-700/50 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+                                            <Icons.Layers className="w-5 h-5 group-hover:text-indigo-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-semibold text-lg">Open Database</div>
+                                            <div className="text-zinc-400 text-sm">Load an existing Nexus .json file</div>
+                                        </div>
+                                    </div>
+                                    <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
+                                </button>
+                                
+                                <button onClick={createDatabase} className="w-full glass bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/30 text-white p-4 rounded-2xl flex items-center justify-between group transition-all">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-2 bg-indigo-500/20 rounded-lg group-hover:bg-indigo-500/40 transition-colors">
+                                            <Icons.Plus className="w-5 h-5 text-indigo-400" />
+                                        </div>
+                                        <div className="text-left">
+                                            <div className="font-semibold text-lg text-indigo-300">Create New</div>
+                                            <div className="text-zinc-400 text-sm">Start a fresh inventory file</div>
+                                        </div>
+                                    </div>
+                                    <Icons.ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-indigo-300 transition-colors" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const navItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: Icons.Home },
+                { id: 'skus', label: 'Catalog', icon: Icons.Tag },
+                { id: 'items', label: 'Items & Kits', icon: Icons.Box },
+                { id: 'topology', label: 'Locations', icon: Icons.Map },
+                { id: 'query', label: 'Query', icon: Icons.Table },
+                { id: 'settings', label: 'Settings', icon: Icons.Settings }
+            ];
+
+            return (
+                <div className="flex h-screen overflow-hidden bg-zinc-950 selection:bg-indigo-500/30">
+                    {/* Desktop Sidebar */}
+                    <aside className="hidden md:flex flex-col w-64 glass-panel border-r border-zinc-800/50 z-10">
+                        <div className="p-6 flex items-center gap-3">
+                            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                                <Icons.Database className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="font-bold text-xl tracking-tight">Nexus</span>
+                        </div>
+                        <nav className="flex-1 px-4 space-y-1 overflow-y-auto no-scrollbar">
+                            {navItems.map(item => (
+                                <button key={item.id} onClick={() => setCurrentView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === item.id ? 'bg-indigo-500/10 text-indigo-400' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'}`}>
+                                    <item.icon className="w-5 h-5" />
+                                    <span className="font-medium">{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                        <div className="p-4 m-4 glass rounded-xl flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <div className="text-xs text-zinc-400 truncate">
+                                Sync: {fileHandle ? fileHandle.name : 'Unknown'}
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 relative overflow-y-auto no-scrollbar pb-24 md:pb-0">
+                        <div className="max-w-6xl mx-auto p-4 md:p-8 min-h-full">
+                            {currentView === 'dashboard' && <DashboardView db={db} />}
+                            {currentView === 'skus' && <SkuView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
+                            {currentView === 'items' && <ItemView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
+                            {currentView === 'topology' && <TopologyView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
+                            {currentView === 'query' && <QueryView db={db} />}
+                            {currentView === 'settings' && <SettingsView db={db} updateDb={updateDb} showToast={showToast} logAction={logAction} />}
+                        </div>
+                    </main>
+
+                    {/* Mobile Bottom Nav */}
+                    <nav className="md:hidden fixed bottom-0 w-full glass-panel border-t border-zinc-800/50 pb-safe z-50 flex justify-around p-2">
+                        {navItems.slice(0,5).map(item => (
+                            <button key={item.id} onClick={() => setCurrentView(item.id)} className={`flex flex-col items-center p-2 rounded-lg ${currentView === item.id ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                                <item.icon className="w-6 h-6 mb-1" />
+                                <span className="text-[10px] font-medium">{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+
+                    {/* Toast Notification */}
+                    {toast && (
+                        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-[slideDown_0.3s_ease-out]">
+                            <div className={`glass px-4 py-3 rounded-full shadow-lg border flex items-center gap-3 ${toast.type === 'error' ? 'border-red-500/50 bg-red-500/10' : 'border-indigo-500/50 bg-indigo-500/10'}`}>
+                                {toast.type === 'error' ? <Icons.Alert className="w-4 h-4 text-red-400" /> : <Icons.Check className="w-4 h-4 text-indigo-400" />}
+                                <span className="text-sm font-medium">{toast.msg}</span>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <style dangerouslySetInnerHTML={{__html: `
+                        @keyframes slideDown { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+                        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+                    `}} />
+                </div>
+            );
+        };
+
+        // --- SUB-VIEWS ---
+
+        const DashboardView = ({ db }) => {
+            const totalItems = db.items.length;
+            const availableItems = db.items.filter(i => i.status === 'Available').length;
+            const maintenanceItems = db.items.filter(i => i.status === 'Maintenance').length;
+            const kittedItems = db.items.filter(i => i.parentId !== null).length;
+
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <header className="mb-8 relative overflow-hidden glass-panel p-8 rounded-3xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900 to-zinc-950">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+                        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Activity className="w-8 h-8 text-indigo-500"/> Command Center</h1>
+                        <p className="text-zinc-400">High-level overview of your assets.</p>
+                    </header>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
+                            <Icons.Box className="absolute -right-2 -bottom-2 w-16 h-16 text-zinc-800/30 group-hover:text-zinc-800/50 transition-colors" />
+                            <div className="text-zinc-400 text-sm font-medium mb-1 flex items-center gap-2"><Icons.Box className="w-4 h-4"/> Total Assets</div>
+                            <div className="text-4xl font-bold">{totalItems}</div>
+                        </div>
+                        <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
+                            <Icons.Check className="absolute -right-2 -bottom-2 w-16 h-16 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors" />
+                            <div className="text-emerald-400 text-sm font-medium mb-1 flex items-center gap-2"><Icons.Check className="w-4 h-4"/> Available</div>
+                            <div className="text-4xl font-bold">{availableItems}</div>
+                        </div>
+                        <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
+                            <Icons.Alert className="absolute -right-2 -bottom-2 w-16 h-16 text-amber-500/10 group-hover:text-amber-500/20 transition-colors" />
+                            <div className="text-amber-400 text-sm font-medium mb-1 flex items-center gap-2"><Icons.Alert className="w-4 h-4"/> In Repair</div>
+                            <div className="text-4xl font-bold">{maintenanceItems}</div>
+                        </div>
+                        <div className="glass-card p-6 rounded-2xl relative overflow-hidden group">
+                            <Icons.Layers className="absolute -right-2 -bottom-2 w-16 h-16 text-indigo-500/10 group-hover:text-indigo-500/20 transition-colors" />
+                            <div className="text-indigo-400 text-sm font-medium mb-1 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Inside Kits</div>
+                            <div className="text-4xl font-bold">{kittedItems}</div>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-6 rounded-2xl">
+                        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Icons.Clock className="w-5 h-5 text-indigo-400"/> Recent Activity</h3>
+                        <div className="space-y-4">
+                            {db.logs.slice(0, 8).map(log => (
+                                <div key={log.id} className="flex gap-4 border-l-2 border-zinc-800 pl-4 py-1 relative hover:bg-zinc-900/50 rounded-r-lg transition-colors">
+                                    <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-zinc-200">{log.action}</p>
+                                        <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1"><Icons.Clock className="w-3 h-3"/> {getRelativeTime(log.timestamp)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {db.logs.length === 0 && (
+                                <div className="text-center py-8">
+                                    <Icons.Info className="w-8 h-8 text-zinc-700 mx-auto mb-2"/>
+                                    <p className="text-sm text-zinc-500">No activity recorded yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SkuView = ({ db, updateDb, showToast, logAction }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingSku, setEditingSku] = useState(null);
+            
+            const handleSave = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const skuData = {
+                    name: fd.get('name'),
+                    category: fd.get('category'),
+                    description: fd.get('description'),
+                    type: fd.get('type') || 'serialized',
+                    id: editingSku ? editingSku.id : `sku-${generateId()}`
+                };
+
+                updateDb(prev => {
+                    const skus = editingSku 
+                        ? prev.skus.map(s => s.id === skuData.id ? skuData : s)
+                        : [...prev.skus, skuData];
+                    return logAction(editingSku ? `Updated Catalog Entry: ${skuData.name}` : `Created Catalog Entry: ${skuData.name}`)( { ...prev, skus } );
+                });
+                
+                showToast(editingSku ? 'SKU Updated' : 'SKU Created');
+                setIsModalOpen(false);
+            };
+
+            const handleDelete = (id) => {
+                if(db.items.some(i => i.skuId === id)) {
+                    showToast('Cannot delete SKU with active items.', 'error');
+                    return;
+                }
+                updateDb(prev => logAction(`Deleted SKU`)( { ...prev, skus: prev.skus.filter(s => s.id !== id) } ));
+                showToast('SKU Deleted');
+            };
+
+            return (
+                <div className="animate-fade-in">
+                    <div className="flex justify-between items-end mb-6">
+                        <header>
+                            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Tag className="w-8 h-8 text-indigo-500"/> SKU Catalog</h1>
+                            <p className="text-zinc-400">Master templates and definitions for your inventory.</p>
+                        </header>
+                        <button onClick={() => { setEditingSku(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
+                            <Icons.Plus className="w-4 h-4"/> Add SKU
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {db.skus.map(sku => {
+                            const itemCount = db.items.filter(i => i.skuId === sku.id).length;
+                            const isBulk = sku.type === 'bulk';
+                            return (
+                                <div key={sku.id} className="glass-card p-5 rounded-2xl flex flex-col h-full border-l-2 border-l-indigo-500/50">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex gap-2">
+                                            <span className="text-[10px] uppercase font-bold px-2 py-1 bg-zinc-800 rounded-md text-zinc-300">{sku.category}</span>
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-md flex items-center gap-1 ${isBulk ? 'bg-amber-500/10 text-amber-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                                                {isBulk ? <Icons.Layers className="w-3 h-3"/> : <Icons.Hash className="w-3 h-3"/>}
+                                                {isBulk ? 'Bulk' : 'Serial'}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => { setEditingSku(sku); setIsModalOpen(true); }} className="text-zinc-400 hover:text-white"><Icons.Settings className="w-4 h-4"/></button>
+                                            <button onClick={() => handleDelete(sku.id)} className="text-zinc-500 hover:text-red-400"><Icons.Trash className="w-4 h-4"/></button>
+                                        </div>
+                                    </div>
+                                    <h3 className="font-bold text-lg mb-1">{sku.name}</h3>
+                                    <p className="text-sm text-zinc-400 line-clamp-2 mb-4 flex-1">{sku.description}</p>
+                                    <div className="mt-auto pt-4 border-t border-zinc-800/50 flex justify-between items-center text-sm">
+                                        <span className="text-zinc-500 flex items-center gap-1"><Icons.Box className="w-4 h-4"/> Tracked Instances</span>
+                                        <span className="font-mono bg-zinc-800 text-zinc-200 px-2 py-0.5 rounded">{itemCount}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {db.skus.length === 0 && (
+                            <div className="col-span-full py-16 text-center glass-card rounded-2xl">
+                                <Icons.Tag className="w-16 h-16 text-zinc-700 mx-auto mb-4"/>
+                                <p className="text-zinc-400 text-lg">No SKUs defined yet. Create your first catalog template to begin.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Modal */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><Icons.X className="w-6 h-6"/></button>
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Icons.Tag className="w-6 h-6 text-indigo-400"/> {editingSku ? 'Edit Catalog Entry' : 'New Catalog Entry'}</h2>
+                                
+                                <form onSubmit={handleSave} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Asset Name</label>
+                                        <input required name="name" defaultValue={editingSku?.name} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white" placeholder="e.g. DeWalt 20V Drill" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Category</label>
+                                            <select required name="category" defaultValue={editingSku?.category || db.categories[0]} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                {db.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Tracking Type</label>
+                                            <select name="type" defaultValue={editingSku?.type || 'serialized'} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                <option value="serialized">Serialized (Unique)</option>
+                                                <option value="bulk">Bulk (Quantity)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Description</label>
+                                        <textarea name="description" defaultValue={editingSku?.description} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white h-24 resize-none" placeholder="Specifications, notes, etc." />
+                                    </div>
+                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium mt-4 transition-all">Save Template</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ItemView = ({ db, updateDb, showToast, logAction }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingItem, setEditingItem] = useState(null);
+            const [inspectionItem, setInspectionItem] = useState(null);
+
+            const enrichedItems = db.items.map(item => ({
+                ...item,
+                sku: db.skus.find(s => s.id === item.skuId),
+                location: db.locations.find(l => l.id === item.locationId),
+                parent: db.items.find(i => i.id === item.parentId)
+            })).filter(i => i.sku);
+
+            const handleSave = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const itemId = editingItem ? editingItem.id : `itm-${generateId()}`;
+                const newStatus = fd.get('status');
+                const newParentId = fd.get('parentId') || null;
+                
+                let resolvedLocationId = fd.get('locationId');
+                if (newParentId) {
+                    const parentItem = db.items.find(i => i.id === newParentId);
+                    if (parentItem) resolvedLocationId = parentItem.locationId;
+                }
+
+                let newHistory = editingItem ? [...(editingItem.locationHistory || [])] : [];
+                if (!editingItem || editingItem.locationId !== resolvedLocationId) {
+                    newHistory.push({ locationId: resolvedLocationId, timestamp: Date.now() });
+                }
+
+                const itemData = {
+                    id: itemId,
+                    skuId: fd.get('skuId'),
+                    status: newStatus,
+                    locationId: resolvedLocationId,
+                    parentId: newParentId,
+                    serial: fd.get('serial'),
+                    quantity: parseInt(fd.get('quantity')) || 1,
+                    lastVerified: editingItem ? editingItem.lastVerified : Date.now(),
+                    locationHistory: newHistory
+                };
+
+                updateDb(prev => {
+                    let newItems = editingItem 
+                        ? prev.items.map(i => i.id === itemData.id ? itemData : i)
+                        : [...prev.items, itemData];
+
+                    if (editingItem && editingItem.status !== newStatus) {
+                        const cascadeStatus = (parentId, status) => {
+                            newItems = newItems.map(i => i.parentId === parentId ? { ...i, status } : i);
+                            newItems.filter(i => i.parentId === parentId).forEach(child => cascadeStatus(child.id, status));
+                        };
+                        cascadeStatus(itemData.id, newStatus);
+                    }
+
+                    if (editingItem && editingItem.locationId !== resolvedLocationId) {
+                        const cascadeLoc = (parentId, locId) => {
+                            newItems = newItems.map(i => {
+                                if (i.parentId === parentId) {
+                                    const h = i.locationId !== locId ? [...(i.locationHistory || []), { locationId: locId, timestamp: Date.now() }] : i.locationHistory;
+                                    return { ...i, locationId: locId, locationHistory: h };
+                                }
+                                return i;
+                            });
+                            newItems.filter(i => i.parentId === parentId).forEach(child => cascadeLoc(child.id, locId));
+                        };
+                        cascadeLoc(itemData.id, resolvedLocationId);
+                    }
+
+                    const skuName = prev.skus.find(s => s.id === itemData.skuId)?.name || 'Item';
+                    return logAction(editingItem ? `Updated Item: ${skuName}` : `Added Item: ${skuName}`)( { ...prev, items: newItems } );
+                });
+                
+                showToast(editingItem ? 'Item Updated' : 'Item Added');
+                setIsModalOpen(false);
+            };
+
+            const handleDelete = (id) => {
+                updateDb(prev => {
+                    const newItems = prev.items.filter(i => i.id !== id).map(i => i.parentId === id ? { ...i, parentId: null } : i);
+                    return logAction(`Deleted Item`)( { ...prev, items: newItems } );
+                });
+                showToast('Item Deleted');
+                setInspectionItem(null);
+            };
+
+            const handleVerify = (id) => {
+                updateDb(prev => {
+                    const newItems = prev.items.map(i => i.id === id ? { ...i, lastVerified: Date.now() } : i);
+                    return logAction(`Verified Item ID: ${id}`)( { ...prev, items: newItems } );
+                });
+                showToast('Item Verified');
+            };
+
+            const topLevelItems = enrichedItems.filter(i => !i.parentId);
+            const hasKitChildren = (itemId) => enrichedItems.some(i => i.parentId === itemId);
+
+            // Recursive Tree Node for Kit Contents
+            const KitTreeNode = ({ item, depth = 0 }) => {
+                const children = enrichedItems.filter(i => i.parentId === item.id);
+                return (
+                    <div className="w-full">
+                        <div onClick={(e) => { e.stopPropagation(); setInspectionItem(item); }} 
+                             className={`flex items-center gap-2 py-2 pr-2 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800 ${depth===0 ? 'bg-zinc-800/50 pl-2 mb-1 border border-zinc-800/50' : 'bg-transparent'}`} 
+                             style={{ paddingLeft: depth === 0 ? '0.5rem' : `${depth * 1.5 + 0.5}rem` }}>
+                            
+                            {depth > 0 && <Icons.CornerDownRight className="w-4 h-4 text-zinc-500 shrink-0"/>}
+                            {item.sku?.type === 'bulk' ? <Icons.Layers className="w-4 h-4 text-zinc-400 shrink-0"/> : <Icons.Hash className="w-4 h-4 text-zinc-400 shrink-0"/>}
+                            
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-zinc-200 truncate">{item.sku?.name}</p>
+                                {item.serial && <p className="text-[10px] text-zinc-500 font-mono">{item.serial}</p>}
+                            </div>
+                            <span className="text-xs font-mono text-zinc-500 bg-zinc-900 px-1.5 rounded">x{item.quantity}</span>
+                        </div>
+                        {children.length > 0 && (
+                            <div className="border-l border-zinc-800 ml-3.5 space-y-0.5 mt-0.5">
+                                {children.map(child => <KitTreeNode key={child.id} item={child} depth={depth + 1} />)}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="animate-fade-in flex gap-6">
+                    <div className="flex-1">
+                        <div className="flex justify-between items-end mb-6">
+                            <header>
+                                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Box className="w-8 h-8 text-indigo-500"/> Instances & Kits</h1>
+                                <p className="text-zinc-400">Manage physical items and container hierarchies.</p>
+                            </header>
+                            <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
+                                <Icons.Plus className="w-4 h-4"/> Add Item
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {topLevelItems.map(item => {
+                                const isKit = hasKitChildren(item.id);
+                                return (
+                                <div key={item.id} onClick={() => setInspectionItem(item)} className="glass-card p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-zinc-800/80">
+                                    <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 relative">
+                                        {isKit ? <Icons.Layers className="w-6 h-6 text-indigo-400"/> : (item.sku?.type === 'bulk' ? <Icons.Layers className="w-6 h-6 text-zinc-400"/> : <Icons.Hash className="w-6 h-6 text-zinc-400"/>)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-bold text-white truncate">{item.sku?.name}</h3>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusColors[item.status] || 'bg-zinc-800 text-zinc-300'}`}>
+                                                {item.status}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-3 text-xs text-zinc-500">
+                                            {item.serial && <span className="flex items-center gap-1"><Icons.Hash className="w-3 h-3"/> <span className="font-mono text-zinc-400">{item.serial}</span></span>}
+                                            <span className="flex items-center gap-1"><Icons.Map className="w-3 h-3"/> {item.location?.name || 'Unknown'}</span>
+                                        </div>
+                                    </div>
+                                    <div className="shrink-0 text-right bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800">
+                                        <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-0.5">Qty</div>
+                                        <div className="font-mono font-medium text-indigo-300">{item.quantity}</div>
+                                    </div>
+                                </div>
+                            )})}
+                            {topLevelItems.length === 0 && (
+                                <div className="py-16 text-center glass-card rounded-2xl">
+                                    <Icons.Box className="w-16 h-16 text-zinc-700 mx-auto mb-4"/>
+                                    <p className="text-zinc-400 text-lg">No physical items added. Create instances here.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Inspection Panel */}
+                    {inspectionItem && (
+                        <div className="hidden lg:block w-[340px] shrink-0">
+                            <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                                        <Icons.Info className="w-6 h-6 text-indigo-400"/>
+                                    </div>
+                                    <button onClick={() => setInspectionItem(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
+                                </div>
+                                
+                                <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{inspectionItem.sku?.name}</h2>
+                                <p className="text-sm text-zinc-400 mb-6">{inspectionItem.sku?.description}</p>
+
+                                <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
+                                    <div className="flex justify-between items-center py-1">
+                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[inspectionItem.status] || ''}`}>{inspectionItem.status}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-1">
+                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Map className="w-4 h-4"/> Location</span>
+                                        <span className="font-medium text-white">{inspectionItem.location?.name || 'Unassigned'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-1">
+                                        <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
+                                        <span className="font-mono text-zinc-300">{inspectionItem.serial || 'N/A'}</span>
+                                    </div>
+                                    {inspectionItem.parent && (
+                                        <div className="flex justify-between items-center py-1 mt-2 pt-2 border-t border-zinc-800 cursor-pointer group" onClick={() => setInspectionItem(inspectionItem.parent)}>
+                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Kit Parent</span>
+                                            <span className="font-medium text-indigo-400 group-hover:underline flex items-center gap-1">{inspectionItem.parent.sku?.name} <Icons.ChevronRight className="w-3 h-3"/></span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Kit Contents Tree */}
+                                {hasKitChildren(inspectionItem.id) && (
+                                    <div className="mb-6">
+                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Nested Kit Tree</h3>
+                                        <div className="bg-zinc-900/30 rounded-xl p-2 border border-zinc-800/50">
+                                            {enrichedItems.filter(i => i.parentId === inspectionItem.id).map(child => (
+                                                <KitTreeNode key={child.id} item={child} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Location History */}
+                                {inspectionItem.serial && inspectionItem.locationHistory && inspectionItem.locationHistory.length > 0 && (
+                                    <div className="mb-6">
+                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Clock className="w-4 h-4"/> Tracking History</h3>
+                                        <div className="space-y-3 border-l-2 border-zinc-800 ml-2 pl-4">
+                                            {inspectionItem.locationHistory.slice().reverse().map((hist, idx) => {
+                                                const locName = db.locations.find(l => l.id === hist.locationId)?.name || 'Unknown';
+                                                return (
+                                                    <div key={idx} className="relative">
+                                                        <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-[#18181b]"></div>
+                                                        <p className="text-sm text-zinc-200 font-medium">{locName}</p>
+                                                        <p className="text-[10px] text-zinc-500">{new Date(hist.timestamp).toLocaleString()}</p>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mb-6 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                                    <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+                                        <Icons.ShieldCheck className="w-4 h-4 text-emerald-500"/>
+                                        Verified: {getRelativeTime(inspectionItem.lastVerified || Date.now())}
+                                    </div>
+                                    <button onClick={() => handleVerify(inspectionItem.id)} className="w-full py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors font-medium text-sm flex justify-center items-center gap-2">
+                                        <Icons.Check className="w-4 h-4"/> Confirm Presence
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button onClick={() => { setEditingItem(inspectionItem); setIsModalOpen(true); }} className="flex-1 glass bg-zinc-800/50 hover:bg-zinc-700/50 py-2.5 rounded-xl text-sm font-medium transition-colors">Edit</button>
+                                    <button onClick={() => handleDelete(inspectionItem.id)} className="flex-1 glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2"><Icons.Trash className="w-4 h-4"/> Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal (Add/Edit) */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><Icons.X className="w-6 h-6"/></button>
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Icons.Box className="w-6 h-6 text-indigo-400"/> {editingItem ? 'Edit Item' : 'Register Item'}</h2>
+                                
+                                {db.skus.length === 0 ? (
+                                    <div className="text-amber-400 p-4 bg-amber-500/10 rounded-xl text-sm border border-amber-500/20">You must create at least one SKU in the catalog before adding an item.</div>
+                                ) : (
+                                    <form onSubmit={handleSave} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">SKU (Template)</label>
+                                            <select required name="skuId" defaultValue={editingItem?.skuId} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                {db.skus.map(s => <option key={s.id} value={s.id}>{s.name} ({s.type})</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-1">Status</label>
+                                                <select name="status" defaultValue={editingItem?.status || 'Available'} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                    {db.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-1">Location</label>
+                                                <select name="locationId" defaultValue={editingItem?.locationId || db.locations[0]?.id} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                    {db.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Kit Parent (Optional)</label>
+                                            <select name="parentId" defaultValue={editingItem?.parentId || ''} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                <option value="">-- Standalone Item --</option>
+                                                {enrichedItems.filter(i => i.id !== editingItem?.id).map(i => (
+                                                    <option key={i.id} value={i.id}>{i.sku?.name} ({i.serial || 'Bulk'})</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[10px] text-zinc-500 mt-1">If assigned to a kit, the item will automatically share the parent's location.</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-1">Serial Number (Opt)</label>
+                                                <input name="serial" defaultValue={editingItem?.serial} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white font-mono text-sm" placeholder="e.g. SN-123" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-400 mb-1">Quantity</label>
+                                                <input type="number" min="1" name="quantity" defaultValue={editingItem?.quantity || 1} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white" />
+                                            </div>
+                                        </div>
+                                        <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium mt-4 transition-all">Save Item Instance</button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const TopologyView = ({ db, updateDb, showToast, logAction }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [inspectionLoc, setInspectionLoc] = useState(null);
+            const [inspectedItem, setInspectedItem] = useState(null); // Overlays the location inspection
+            
+            const handleSave = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const locData = { id: `loc-${generateId()}`, name: fd.get('name'), parentId: fd.get('parentId') || null };
+                updateDb(prev => logAction(`Created Location: ${locData.name}`)( { ...prev, locations: [...prev.locations, locData] } ));
+                showToast('Location Created');
+                setIsModalOpen(false);
+            };
+
+            const handleDeleteLocation = (id) => {
+                if (db.items.some(i => i.locationId === id)) { showToast('Cannot delete location containing items.', 'error'); return; }
+                if (db.locations.some(l => l.parentId === id)) { showToast('Cannot delete location containing sub-locations.', 'error'); return; }
+                updateDb(prev => logAction('Deleted Location')({ ...prev, locations: prev.locations.filter(l => l.id !== id) }));
+                setInspectionLoc(null);
+                showToast('Location Deleted');
+            };
+
+            const LocationNode = ({ location, level = 0 }) => {
+                const children = db.locations.filter(l => l.parentId === location.id);
+                const itemsHere = db.items.filter(i => i.locationId === location.id && !i.parentId);
+                return (
+                    <div className="mt-2">
+                        <div onClick={() => { setInspectionLoc(location); setInspectedItem(null); }} className={`glass-card p-3 rounded-xl flex items-center justify-between group cursor-pointer transition-colors ${inspectionLoc?.id === location.id && !inspectedItem ? 'bg-indigo-500/10 border-indigo-500/30' : 'hover:bg-zinc-800/80'}`} style={{ marginLeft: `${level * 1.5}rem` }}>
+                            <div className="flex items-center gap-3">
+                                {level > 0 ? <Icons.CornerDownRight className="w-4 h-4 text-zinc-600"/> : <Icons.Map className={`w-4 h-4 ${inspectionLoc?.id === location.id ? 'text-indigo-400' : 'text-zinc-500'}`} />}
+                                <span className={`font-medium ${inspectionLoc?.id === location.id && !inspectedItem ? 'text-indigo-300' : 'text-zinc-200'}`}>{location.name}</span>
+                                {itemsHere.length > 0 && <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-md ml-2 flex items-center gap-1"><Icons.Box className="w-3 h-3"/> {itemsHere.length}</span>}
+                            </div>
+                        </div>
+                        {children.map(child => <LocationNode key={child.id} location={child} level={level + 1} />)}
+                    </div>
+                );
+            };
+
+            const rootLocations = db.locations.filter(l => !l.parentId);
+            const enrichedItems = db.items.map(item => ({ ...item, sku: db.skus.find(s => s.id === item.skuId), location: db.locations.find(l => l.id === item.locationId), parent: db.items.find(i=>i.id===item.parentId) }));
+            const inspectedLocItems = inspectionLoc ? enrichedItems.filter(i => i.locationId === inspectionLoc.id && !i.parentId) : [];
+            const fullInspectedItem = inspectedItem ? enrichedItems.find(i => i.id === inspectedItem.id) : null;
+
+            return (
+                <div className="animate-fade-in flex gap-6">
+                    <div className="flex-1 max-w-3xl">
+                        <div className="flex justify-between items-end mb-6">
+                            <header>
+                                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Map className="w-8 h-8 text-indigo-500"/> Topology Map</h1>
+                                <p className="text-zinc-400">Physical structure and zones of your storage.</p>
+                            </header>
+                            <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
+                                <Icons.Plus className="w-4 h-4"/> Add Node
+                            </button>
+                        </div>
+
+                        <div className="glass-panel p-6 rounded-3xl min-h-[50vh]">
+                            {rootLocations.map(root => <LocationNode key={root.id} location={root} />)}
+                            {db.locations.length === 0 && <p className="text-zinc-500 italic">No locations defined.</p>}
+                        </div>
+                    </div>
+
+                    {/* Inspection Panel Logic */}
+                    {(inspectionLoc || fullInspectedItem) && (
+                        <div className="hidden lg:block w-80 shrink-0">
+                            {fullInspectedItem ? (
+                                // --- ITEM INSPECTION OVERLAY ---
+                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
+                                    <button onClick={() => setInspectedItem(null)} className="w-full flex items-center justify-center gap-2 mb-6 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 py-2 rounded-xl transition-colors text-sm font-medium">
+                                        <Icons.ArrowLeft className="w-4 h-4"/> Back to Location
+                                    </button>
+                                    
+                                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{fullInspectedItem.sku?.name}</h2>
+                                    <p className="text-sm text-zinc-400 mb-6">{fullInspectedItem.sku?.description}</p>
+                                    
+                                    <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
+                                        <div className="flex justify-between items-center py-1">
+                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[fullInspectedItem.status] || ''}`}>{fullInspectedItem.status}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-1">
+                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
+                                            <span className="font-mono text-zinc-300">{fullInspectedItem.serial || 'N/A'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-1">
+                                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Quantity</span>
+                                            <span className="font-mono text-zinc-300">{fullInspectedItem.quantity}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Sub-Items Tree just for viewing */}
+                                    {enrichedItems.some(i => i.parentId === fullInspectedItem.id) && (
+                                        <div className="mb-6">
+                                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Contains</h3>
+                                            <div className="bg-zinc-900/30 rounded-xl p-3 border border-zinc-800/50">
+                                                {enrichedItems.filter(i => i.parentId === fullInspectedItem.id).map(child => (
+                                                    <div key={child.id} className="flex items-center gap-2 text-sm text-zinc-300 mb-1 last:mb-0"><Icons.Box className="w-3 h-3 text-zinc-500"/> {child.sku?.name} (x{child.quantity})</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                // --- LOCATION INSPECTION ---
+                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-zinc-800">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center border border-zinc-800">
+                                            <Icons.Map className="w-6 h-6 text-zinc-400"/>
+                                        </div>
+                                        <button onClick={() => setInspectionLoc(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
+                                    </div>
+                                    
+                                    <h2 className="text-xl font-bold mb-1">{inspectionLoc.name}</h2>
+                                    {inspectionLoc.parentId && <p className="text-sm text-zinc-500 mb-6 flex items-center gap-1"><Icons.CornerDownRight className="w-4 h-4"/> In: {db.locations.find(l=>l.id===inspectionLoc.parentId)?.name}</p>}
+
+                                    <div className="mb-6">
+                                        <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Box className="w-4 h-4"/> Stored Assets ({inspectedLocItems.length})</h3>
+                                        {inspectedLocItems.length === 0 ? (
+                                            <div className="text-sm text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-zinc-800/50 text-center"><Icons.Info className="w-6 h-6 mx-auto mb-2 opacity-50"/> Location is empty</div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {inspectedLocItems.map(item => (
+                                                    <div key={item.id} onClick={() => setInspectedItem(item)} className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800/50 hover:border-indigo-500/30 cursor-pointer transition-colors group">
+                                                        {item.sku?.type === 'bulk' ? <Icons.Layers className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/> : <Icons.Hash className="w-4 h-4 text-zinc-500 group-hover:text-indigo-400 transition-colors shrink-0"/>}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm text-zinc-200 truncate">{item.sku?.name}</p>
+                                                            {item.serial && <p className="text-[10px] text-zinc-500 font-mono">{item.serial}</p>}
+                                                        </div>
+                                                        <Icons.ChevronRight className="w-4 h-4 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button onClick={() => handleDeleteLocation(inspectionLoc.id)} className="w-full glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 mt-auto">
+                                        <Icons.Trash className="w-4 h-4"/> Delete Node
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="glass-panel w-full max-w-md rounded-3xl p-6 relative">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><Icons.X className="w-6 h-6"/></button>
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Icons.Map className="w-6 h-6 text-indigo-400"/> New Location Node</h2>
+                                
+                                <form onSubmit={handleSave} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Location Name</label>
+                                        <input required name="name" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white" placeholder="e.g. Rack B" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Parent Location</label>
+                                        <select name="parentId" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                            <option value="">-- Top Level --</option>
+                                            {db.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium mt-4 transition-colors">Save Node</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const QueryView = ({ db }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+
+            const enrichedItems = useMemo(() => {
+                return db.items.map(item => ({
+                    ...item,
+                    sku: db.skus.find(s => s.id === item.skuId),
+                    location: db.locations.find(l => l.id === item.locationId)
+                }));
+            }, [db]);
+
+            const term = searchTerm.toLowerCase().trim();
+            const isSearching = term.length > 0;
+
+            const renderTreeRow = (item, depth = 0) => {
+                const children = enrichedItems.filter(i => i.parentId === item.id);
+                const isKit = children.length > 0;
+                
+                return (
+                    <React.Fragment key={item.id}>
+                        <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
+                            <td className="py-3 px-4" style={{ paddingLeft: depth === 0 ? '1rem' : `${depth * 2 + 1}rem` }}>
+                                <div className="flex items-center gap-2">
+                                    {depth > 0 && <Icons.CornerDownRight className="w-4 h-4 text-zinc-600 shrink-0"/>}
+                                    {isKit ? <Icons.Layers className="w-4 h-4 text-indigo-400 shrink-0"/> : <Icons.Box className="w-4 h-4 text-zinc-500 shrink-0"/>}
+                                    <span className={`font-medium ${depth === 0 ? 'text-zinc-100' : 'text-zinc-300'}`}>{item.sku?.name}</span>
+                                </div>
+                            </td>
+                            <td className="py-3 px-4">
+                                <span className="flex items-center gap-1 text-sm text-zinc-400">
+                                    {item.sku?.type === 'bulk' ? <Icons.Layers className="w-3 h-3"/> : <Icons.Hash className="w-3 h-3"/>}
+                                    <span className="capitalize">{item.sku?.type || 'Unknown'}</span>
+                                </span>
+                            </td>
+                            <td className="py-3 px-4">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusColors[item.status] || 'bg-zinc-800 text-zinc-300'}`}>
+                                    {item.status}
+                                </span>
+                            </td>
+                            <td className="py-3 px-4 text-sm text-zinc-300 flex items-center gap-1"><Icons.Map className="w-3 h-3 text-zinc-500"/> {item.location?.name || '-'}</td>
+                            <td className="py-3 px-4 text-sm font-mono text-zinc-400">{item.serial || '-'}</td>
+                            <td className="py-3 px-4 text-sm font-mono text-indigo-300">x{item.quantity}</td>
+                        </tr>
+                        {/* Recurse children if not searching (to preserve tree view) */}
+                        {!isSearching && children.map(child => renderTreeRow(child, depth + 1))}
+                    </React.Fragment>
+                );
+            };
+
+            const displayItems = isSearching 
+                ? enrichedItems.filter(i => i.sku?.name.toLowerCase().includes(term) || i.sku?.description.toLowerCase().includes(term) || (i.serial && i.serial.toLowerCase().includes(term)))
+                : enrichedItems.filter(i => !i.parentId); // Only top level if not searching
+
+            return (
+                <div className="animate-fade-in max-w-5xl mx-auto pb-8">
+                    <header className="mb-8 text-center mt-6">
+                        <Icons.Table className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+                        <h1 className="text-3xl font-bold mb-2">Data Table Query</h1>
+                        <p className="text-zinc-400">Comprehensive view of all assets with nested hierarchy.</p>
+                    </header>
+
+                    <div className="relative mb-6">
+                        <input 
+                            type="text" 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search names, descriptions, or serial numbers..." 
+                            className="w-full bg-zinc-900/80 border border-zinc-700/50 rounded-2xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-zinc-500 shadow-xl"
+                        />
+                        <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-500" />
+                    </div>
+
+                    <div className="glass-panel rounded-2xl overflow-hidden border border-zinc-800/50 shadow-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left whitespace-nowrap">
+                                <thead className="bg-zinc-900/80 border-b border-zinc-800">
+                                    <tr>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1"><Icons.Box className="w-3 h-3"/> Asset Name</th>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Tag className="w-3 h-3 inline mr-1"/> Type</th>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Activity className="w-3 h-3 inline mr-1"/> Status</th>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Map className="w-3 h-3 inline mr-1"/> Location</th>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Hash className="w-3 h-3 inline mr-1"/> Serial</th>
+                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {displayItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="py-12 text-center text-zinc-500">
+                                                <Icons.Search className="w-8 h-8 mx-auto mb-2 opacity-50"/>
+                                                No results found.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        displayItems.map(item => renderTreeRow(item, 0))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsView = ({ db, updateDb, showToast, logAction }) => {
+            const handleAddCategory = () => {
+                const cat = prompt("Enter new category name:");
+                if(cat && cat.trim() && !db.categories.includes(cat.trim())) {
+                    updateDb(prev => logAction('Added Category')({ ...prev, categories: [...prev.categories, cat.trim()] }));
+                    showToast('Category Added');
+                }
+            };
+
+            const handleDeleteCategory = (cat) => {
+                if(db.skus.some(s => s.category === cat)) { showToast('Cannot delete category in use by SKUs.', 'error'); return; }
+                updateDb(prev => logAction(`Deleted Category: ${cat}`)({ ...prev, categories: prev.categories.filter(c => c !== cat) }));
+                showToast('Category Deleted');
+            };
+
+            const handleAddStatus = () => {
+                const stat = prompt("Enter new status tag:");
+                if(stat && stat.trim() && !db.statuses.includes(stat.trim())) {
+                    updateDb(prev => logAction('Added Status Tag')({ ...prev, statuses: [...prev.statuses, stat.trim()] }));
+                    showToast('Status Tag Added');
+                }
+            };
+
+            const handleDeleteStatus = (stat) => {
+                if(db.items.some(i => i.status === stat)) { showToast('Cannot delete status tag in use by items.', 'error'); return; }
+                updateDb(prev => logAction(`Deleted Status: ${stat}`)({ ...prev, statuses: prev.statuses.filter(s => s !== stat) }));
+                showToast('Status Tag Deleted');
+            };
+
+            return (
+                <div className="animate-fade-in max-w-2xl">
+                    <header className="mb-8">
+                        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Settings className="w-8 h-8 text-indigo-500"/> Master Settings</h1>
+                        <p className="text-zinc-400">Manage tags, categories, and system data rules.</p>
+                    </header>
+
+                    <div className="space-y-6">
+                        <div className="glass-panel p-6 rounded-3xl border border-zinc-800/50">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-semibold flex items-center gap-2"><Icons.Layers className="w-5 h-5 text-zinc-400"/> Classification Categories</h2>
+                                <button onClick={handleAddCategory} className="text-sm bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"><Icons.Plus className="w-4 h-4"/> Add</button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {db.categories.map(c => (
+                                    <div key={c} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-300 group transition-all hover:bg-zinc-800 hover:border-zinc-700">
+                                        <Icons.Tag className="w-3 h-3 text-zinc-500"/>
+                                        <span>{c}</span>
+                                        <button onClick={() => handleDeleteCategory(c)} className="opacity-0 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"><Icons.X className="w-3.5 h-3.5"/></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="glass-panel p-6 rounded-3xl border border-zinc-800/50">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-semibold flex items-center gap-2"><Icons.Activity className="w-5 h-5 text-zinc-400"/> Operational Status Tags</h2>
+                                <button onClick={handleAddStatus} className="text-sm bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"><Icons.Plus className="w-4 h-4"/> Add</button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {db.statuses.map(s => (
+                                    <div key={s} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-300 group transition-all hover:bg-zinc-800 hover:border-zinc-700">
+                                        <div className="w-2 h-2 rounded-full bg-zinc-600"></div>
+                                        <span>{s}</span>
+                                        <button onClick={() => handleDeleteStatus(s)} className="opacity-0 w-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all"><Icons.X className="w-3.5 h-3.5"/></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="glass-panel p-6 rounded-3xl border border-red-500/20 bg-red-500/5">
+                            <h2 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2"><Icons.Alert className="w-5 h-5"/> Danger Zone</h2>
+                            <p className="text-sm text-zinc-500 mb-4">Actions here are destructive and write directly to your local JSON file.</p>
+                            <button onClick={() => {
+                                if(confirm("Are you sure? This will wipe the database clean. The local file will be overwritten.")) {
+                                    updateDb(() => DEFAULT_DB);
+                                    showToast('Database reset to defaults');
+                                }
+                            }} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2">
+                                <Icons.Trash className="w-4 h-4"/> Factory Reset Database
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
