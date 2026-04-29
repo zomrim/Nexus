@@ -77,7 +77,8 @@
             Table: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg>,
             Tag: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>,
             ArrowLeft: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-            Info: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Info: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+            Hammer: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"/><path d="M17.64 15 22 10.64"/><path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H11.2l-2.9 2.9c-.83.83-.83 2.17 0 3l4 4c.83.83 2.17.83 3 0l2.9-2.9v-.86c0-.85.34-1.65.94-2.25l1.25-1.25z"/></svg>
         };
 
         // --- UTILS ---
@@ -329,11 +330,11 @@
                     {/* Main Content Area */}
                     <main className="flex-1 relative overflow-y-auto no-scrollbar pb-24 md:pb-0">
                         <div className="max-w-6xl mx-auto p-4 md:p-8 min-h-full">
-                            {currentView === 'dashboard' && <DashboardView db={db} />}
+                            {currentView === 'dashboard' && <DashboardView db={db} setCurrentView={setCurrentView} />}
                             {currentView === 'skus' && <SkuView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
                             {currentView === 'items' && <ItemView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
                             {currentView === 'topology' && <TopologyView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
-                            {currentView === 'query' && <QueryView db={db} />}
+                            {currentView === 'query' && <QueryView db={db} updateDb={updateDb} logAction={logAction} showToast={showToast} />}
                             {currentView === 'settings' && <SettingsView db={db} updateDb={updateDb} showToast={showToast} logAction={logAction} />}
                         </div>
                     </main>
@@ -369,7 +370,7 @@
 
         // --- SUB-VIEWS ---
 
-        const DashboardView = ({ db }) => {
+        const DashboardView = ({ db, setCurrentView }) => {
             const totalItems = db.items.length;
             const availableItems = db.items.filter(i => i.status === 'Available').length;
             const maintenanceItems = db.items.filter(i => i.status === 'Maintenance').length;
@@ -379,8 +380,15 @@
                 <div className="space-y-6 animate-fade-in">
                     <header className="mb-8 relative overflow-hidden glass-panel p-8 rounded-3xl border border-zinc-800/50 bg-gradient-to-br from-zinc-900 to-zinc-950">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-                        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Activity className="w-8 h-8 text-indigo-500"/> Command Center</h1>
-                        <p className="text-zinc-400">High-level overview of your assets.</p>
+                        <div className="flex justify-between items-start relative z-10">
+                            <div>
+                                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Activity className="w-8 h-8 text-indigo-500"/> Command Center</h1>
+                                <p className="text-zinc-400">High-level overview of your assets.</p>
+                            </div>
+                            <button onClick={() => setCurrentView('settings')} className="md:hidden bg-zinc-800/50 hover:bg-zinc-700/50 p-3 rounded-xl transition-colors border border-zinc-700/50">
+                                <Icons.Settings className="w-6 h-6 text-zinc-300" />
+                            </button>
+                        </div>
                     </header>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -472,8 +480,8 @@
                             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Tag className="w-8 h-8 text-indigo-500"/> SKU Catalog</h1>
                             <p className="text-zinc-400">Master templates and definitions for your inventory.</p>
                         </header>
-                        <button onClick={() => { setEditingSku(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
-                            <Icons.Plus className="w-4 h-4"/> Add SKU
+                        <button onClick={() => { setEditingSku(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20 shrink-0">
+                            <Icons.Plus className="w-4 h-4"/> <span className="hidden sm:inline">Add SKU</span>
                         </button>
                     </div>
 
@@ -555,8 +563,12 @@
 
         const ItemView = ({ db, updateDb, showToast, logAction }) => {
             const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isKitBuilderOpen, setIsKitBuilderOpen] = useState(false);
             const [editingItem, setEditingItem] = useState(null);
             const [inspectionItem, setInspectionItem] = useState(null);
+
+            const [kitParentId, setKitParentId] = useState('');
+            const [kitChildrenIds, setKitChildrenIds] = useState([]);
 
             const enrichedItems = db.items.map(item => ({
                 ...item,
@@ -628,6 +640,31 @@
                 
                 showToast(editingItem ? 'Item Updated' : 'Item Added');
                 setIsModalOpen(false);
+            };
+
+            const handleBuildKit = (e) => {
+                e.preventDefault();
+                if (!kitParentId) return showToast('Please select a Parent Container', 'error');
+                if (kitChildrenIds.length === 0) return showToast('Please select at least one Child Item', 'error');
+
+                const parent = db.items.find(i => i.id === kitParentId);
+
+                updateDb(prev => {
+                    const newItems = prev.items.map(i => {
+                        if (kitChildrenIds.includes(i.id)) {
+                            const newHistory = i.locationId !== parent.locationId ? [...(i.locationHistory || []), {locationId: parent.locationId, timestamp: Date.now()}] : (i.locationHistory || []);
+                            return { ...i, parentId: kitParentId, locationId: parent.locationId, locationHistory: newHistory };
+                        }
+                        return i;
+                    });
+                    const parentName = prev.skus.find(s => s.id === parent.skuId)?.name || 'Item';
+                    return logAction(`Assembled Kit inside: ${parentName}`)( { ...prev, items: newItems } );
+                });
+
+                showToast('Kit Assembled Successfully');
+                setIsKitBuilderOpen(false);
+                setKitParentId('');
+                setKitChildrenIds([]);
             };
 
             const handleDelete = (id) => {
@@ -765,8 +802,20 @@
                                 <h1 className="text-3xl font-bold mb-2 flex items-center gap-3"><Icons.Box className="w-8 h-8 text-indigo-500"/> Instances & Kits</h1>
                                 <p className="text-zinc-400">Manage physical items and container hierarchies.</p>
                             </header>
-                            <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
-                                <Icons.Plus className="w-4 h-4"/> Add Item
+                            <div className="flex gap-2 shrink-0">
+                                <button onClick={() => { setKitParentId(''); setKitChildrenIds([]); setIsKitBuilderOpen(true); }} className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg hidden sm:flex border border-zinc-700">
+                                    <Icons.Hammer className="w-4 h-4"/> Build Kit
+                                </button>
+                                <button onClick={() => { setEditingItem(null); setIsModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-500/20">
+                                    <Icons.Plus className="w-4 h-4"/> <span className="hidden sm:inline">Add Item</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Mobile Build Kit Button */}
+                        <div className="sm:hidden mb-4">
+                            <button onClick={() => { setKitParentId(''); setKitChildrenIds([]); setIsKitBuilderOpen(true); }} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl flex justify-center items-center gap-2 transition-all active:scale-95 shadow-lg border border-zinc-700">
+                                <Icons.Hammer className="w-4 h-4"/> Build Kit
                             </button>
                         </div>
 
@@ -822,6 +871,52 @@
                                 </div>
                             </div>
                         </>
+                    )}
+
+                    {/* Build Kit Modal */}
+                    {isKitBuilderOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative h-[80vh] flex flex-col">
+                                <button onClick={() => setIsKitBuilderOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><Icons.X className="w-6 h-6"/></button>
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 shrink-0"><Icons.Hammer className="w-6 h-6 text-indigo-400"/> Build Kit</h2>
+                                
+                                <form onSubmit={handleBuildKit} className="flex flex-col flex-1 min-h-0">
+                                    <div className="mb-4 shrink-0">
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Select Parent Container</label>
+                                        <select required value={kitParentId} onChange={e => {setKitParentId(e.target.value); setKitChildrenIds(kitChildrenIds.filter(id => id !== e.target.value));}} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 text-white shadow-inner">
+                                            <option value="">-- Choose Parent Item --</option>
+                                            {topLevelItems.map(i => <option key={i.id} value={i.id}>{i.sku?.name} ({i.serial || 'Bulk Qty: ' + i.quantity})</option>)}
+                                        </select>
+                                    </div>
+                                    
+                                    <div className="flex-1 min-h-0 flex flex-col mb-4">
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1 flex justify-between">
+                                            Select Child Items
+                                            <span className="text-indigo-400">{kitChildrenIds.length} Selected</span>
+                                        </label>
+                                        <div className="flex-1 overflow-y-auto no-scrollbar bg-zinc-950/50 border border-zinc-800 rounded-xl p-2 space-y-1 shadow-inner">
+                                            {topLevelItems.filter(i => i.id !== kitParentId).map(i => (
+                                                <label key={i.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-zinc-800/80 cursor-pointer transition-colors border border-transparent hover:border-zinc-700">
+                                                    <input type="checkbox" checked={kitChildrenIds.includes(i.id)} onChange={(e) => {
+                                                        if (e.target.checked) setKitChildrenIds([...kitChildrenIds, i.id]);
+                                                        else setKitChildrenIds(kitChildrenIds.filter(id => id !== i.id));
+                                                    }} className="w-5 h-5 rounded border-zinc-700 text-indigo-500 focus:ring-indigo-500 bg-zinc-900 accent-indigo-500"/>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm text-zinc-200 truncate font-medium">{i.sku?.name}</p>
+                                                        <p className="text-xs text-zinc-500">{i.serial ? `SN: ${i.serial}` : `Qty: ${i.quantity}`} • {i.location?.name}</p>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                            {topLevelItems.length <= 1 && (
+                                                <div className="text-center py-8 text-zinc-500 text-sm">Not enough top-level items available to build a kit.</div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold shrink-0 transition-all shadow-lg shadow-indigo-500/20">Assemble Kit</button>
+                                </form>
+                            </div>
+                        </div>
                     )}
 
                     {/* Modal (Add/Edit) */}
@@ -1077,19 +1172,209 @@
             );
         };
 
-        const QueryView = ({ db }) => {
+        const QueryView = ({ db, updateDb, showToast, logAction }) => {
             const [searchTerm, setSearchTerm] = useState('');
+            const [inspectionItem, setInspectionItem] = useState(null);
+            const [editingItem, setEditingItem] = useState(null);
+            const [isModalOpen, setIsModalOpen] = useState(false);
 
             const enrichedItems = useMemo(() => {
                 return db.items.map(item => ({
                     ...item,
                     sku: db.skus.find(s => s.id === item.skuId),
-                    location: db.locations.find(l => l.id === item.locationId)
-                }));
+                    location: db.locations.find(l => l.id === item.locationId),
+                    parent: db.items.find(i => i.id === item.parentId)
+                })).filter(i => i.sku);
             }, [db]);
 
             const term = searchTerm.toLowerCase().trim();
             const isSearching = term.length > 0;
+
+            const handleSave = (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const itemId = editingItem ? editingItem.id : `itm-${generateId()}`;
+                const newStatus = fd.get('status');
+                const newParentId = fd.get('parentId') || null;
+                
+                let resolvedLocationId = fd.get('locationId');
+                if (newParentId) {
+                    const parentItem = db.items.find(i => i.id === newParentId);
+                    if (parentItem) resolvedLocationId = parentItem.locationId;
+                }
+
+                let newHistory = editingItem ? [...(editingItem.locationHistory || [])] : [];
+                if (!editingItem || editingItem.locationId !== resolvedLocationId) {
+                    newHistory.push({ locationId: resolvedLocationId, timestamp: Date.now() });
+                }
+
+                const itemData = {
+                    id: itemId,
+                    skuId: fd.get('skuId'),
+                    status: newStatus,
+                    locationId: resolvedLocationId,
+                    parentId: newParentId,
+                    serial: fd.get('serial'),
+                    quantity: parseInt(fd.get('quantity')) || 1,
+                    lastVerified: editingItem ? editingItem.lastVerified : Date.now(),
+                    locationHistory: newHistory
+                };
+
+                updateDb(prev => {
+                    let newItems = editingItem ? prev.items.map(i => i.id === itemData.id ? itemData : i) : [...prev.items, itemData];
+                    if (editingItem && editingItem.status !== newStatus) {
+                        const cascadeStatus = (parentId, status) => {
+                            newItems = newItems.map(i => i.parentId === parentId ? { ...i, status } : i);
+                            newItems.filter(i => i.parentId === parentId).forEach(child => cascadeStatus(child.id, status));
+                        };
+                        cascadeStatus(itemData.id, newStatus);
+                    }
+                    if (editingItem && editingItem.locationId !== resolvedLocationId) {
+                        const cascadeLoc = (parentId, locId) => {
+                            newItems = newItems.map(i => {
+                                if (i.parentId === parentId) {
+                                    const h = i.locationId !== locId ? [...(i.locationHistory || []), { locationId: locId, timestamp: Date.now() }] : i.locationHistory;
+                                    return { ...i, locationId: locId, locationHistory: h };
+                                }
+                                return i;
+                            });
+                            newItems.filter(i => i.parentId === parentId).forEach(child => cascadeLoc(child.id, locId));
+                        };
+                        cascadeLoc(itemData.id, resolvedLocationId);
+                    }
+
+                    const skuName = prev.skus.find(s => s.id === itemData.skuId)?.name || 'Item';
+                    return logAction(editingItem ? `Updated Item: ${skuName}` : `Added Item: ${skuName}`)( { ...prev, items: newItems } );
+                });
+                
+                showToast(editingItem ? 'Item Updated' : 'Item Added');
+                setIsModalOpen(false);
+            };
+
+            const handleDelete = (id) => {
+                updateDb(prev => {
+                    const newItems = prev.items.filter(i => i.id !== id).map(i => i.parentId === id ? { ...i, parentId: null } : i);
+                    return logAction(`Deleted Item`)( { ...prev, items: newItems } );
+                });
+                showToast('Item Deleted');
+                setInspectionItem(null);
+            };
+
+            const handleVerify = (id) => {
+                updateDb(prev => {
+                    const newItems = prev.items.map(i => i.id === id ? { ...i, lastVerified: Date.now() } : i);
+                    return logAction(`Verified Item ID: ${id}`)( { ...prev, items: newItems } );
+                });
+                showToast('Item Verified');
+            };
+
+            const hasKitChildren = (itemId) => enrichedItems.some(i => i.parentId === itemId);
+
+            const KitTreeNode = ({ item, depth = 0 }) => {
+                const children = enrichedItems.filter(i => i.parentId === item.id);
+                return (
+                    <div className="w-full">
+                        <div onClick={(e) => { e.stopPropagation(); setInspectionItem(item); }} 
+                             className={`flex items-center gap-2 py-2 pr-2 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800 ${depth===0 ? 'bg-zinc-800/50 pl-2 mb-1 border border-zinc-800/50' : 'bg-transparent'}`} 
+                             style={{ paddingLeft: depth === 0 ? '0.5rem' : `${depth * 1.5 + 0.5}rem` }}>
+                            {depth > 0 && <Icons.CornerDownRight className="w-4 h-4 text-zinc-500 shrink-0"/>}
+                            {item.sku?.type === 'bulk' ? <Icons.Layers className="w-4 h-4 text-zinc-400 shrink-0"/> : <Icons.Hash className="w-4 h-4 text-zinc-400 shrink-0"/>}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-zinc-200 truncate">{item.sku?.name}</p>
+                                {item.serial && <p className="text-[10px] text-zinc-500 font-mono">{item.serial}</p>}
+                            </div>
+                            <span className="text-xs font-mono text-zinc-500 bg-zinc-900 px-1.5 rounded">x{item.quantity}</span>
+                        </div>
+                        {children.length > 0 && (
+                            <div className="border-l border-zinc-800 ml-3.5 space-y-0.5 mt-0.5">
+                                {children.map(child => <KitTreeNode key={child.id} item={child} depth={depth + 1} />)}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const renderInspectionContent = (inspectItem) => {
+                // Because inspectionItem might be stale after edit, find the fresh one
+                const freshItem = enrichedItems.find(i => i.id === inspectItem.id) || inspectItem;
+                return (
+                <>
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                            <Icons.Info className="w-6 h-6 text-indigo-400"/>
+                        </div>
+                        <button onClick={() => setInspectionItem(null)} className="text-zinc-500 hover:text-white bg-zinc-800/50 p-1.5 rounded-lg transition-colors"><Icons.X className="w-5 h-5"/></button>
+                    </div>
+                    
+                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">{freshItem.sku?.name}</h2>
+                    <p className="text-sm text-zinc-400 mb-6">{freshItem.sku?.description}</p>
+
+                    <div className="space-y-4 text-sm mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800/50">
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Tag className="w-4 h-4"/> Status</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${statusColors[freshItem.status] || ''}`}>{freshItem.status}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Map className="w-4 h-4"/> Location</span>
+                            <span className="font-medium text-white">{freshItem.location?.name || 'Unassigned'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-zinc-500 flex items-center gap-2"><Icons.Hash className="w-4 h-4"/> Serial</span>
+                            <span className="font-mono text-zinc-300">{freshItem.serial || 'N/A'}</span>
+                        </div>
+                        {freshItem.parent && (
+                            <div className="flex justify-between items-center py-1 mt-2 pt-2 border-t border-zinc-800 cursor-pointer group" onClick={() => setInspectionItem(freshItem.parent)}>
+                                <span className="text-zinc-500 flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Kit Parent</span>
+                                <span className="font-medium text-indigo-400 group-hover:underline flex items-center gap-1">{freshItem.parent.sku?.name} <Icons.ChevronRight className="w-3 h-3"/></span>
+                            </div>
+                        )}
+                    </div>
+
+                    {hasKitChildren(freshItem.id) && (
+                        <div className="mb-6">
+                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Layers className="w-4 h-4"/> Nested Kit Tree</h3>
+                            <div className="bg-zinc-900/30 rounded-xl p-2 border border-zinc-800/50">
+                                {enrichedItems.filter(i => i.parentId === freshItem.id).map(child => (
+                                    <KitTreeNode key={child.id} item={child} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {freshItem.serial && freshItem.locationHistory && freshItem.locationHistory.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="text-xs font-semibold text-zinc-400 mb-3 uppercase tracking-wider flex items-center gap-2"><Icons.Clock className="w-4 h-4"/> Tracking History</h3>
+                            <div className="space-y-3 border-l-2 border-zinc-800 ml-2 pl-4">
+                                {freshItem.locationHistory.slice().reverse().map((hist, idx) => {
+                                    const locName = db.locations.find(l => l.id === hist.locationId)?.name || 'Unknown';
+                                    return (
+                                        <div key={idx} className="relative">
+                                            <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-[#18181b]"></div>
+                                            <p className="text-sm text-zinc-200 font-medium">{locName}</p>
+                                            <p className="text-[10px] text-zinc-500">{new Date(hist.timestamp).toLocaleString()}</p>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mb-6 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800">
+                        <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+                            <Icons.ShieldCheck className="w-4 h-4 text-emerald-500"/>
+                            Verified: {getRelativeTime(freshItem.lastVerified || Date.now())}
+                        </div>
+                        <button onClick={() => handleVerify(freshItem.id)} className="w-full py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors font-medium text-sm flex justify-center items-center gap-2">
+                            <Icons.Check className="w-4 h-4"/> Confirm Presence
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => { setEditingItem(freshItem); setIsModalOpen(true); }} className="flex-1 glass bg-zinc-800/50 hover:bg-zinc-700/50 py-2.5 rounded-xl text-sm font-medium transition-colors">Edit</button>
+                        <button onClick={() => handleDelete(freshItem.id)} className="flex-1 glass bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/20 py-2.5 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2"><Icons.Trash className="w-4 h-4"/> Delete</button>
+                    </div>
+                </>
+            )};
 
             const renderTreeRow = (item, depth = 0) => {
                 const children = enrichedItems.filter(i => i.parentId === item.id);
@@ -1097,7 +1382,7 @@
                 
                 return (
                     <React.Fragment key={item.id}>
-                        <tr className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
+                        <tr onClick={() => setInspectionItem(item)} className="border-b border-zinc-800/50 hover:bg-zinc-800/80 transition-colors group cursor-pointer">
                             <td className="py-3 px-4" style={{ paddingLeft: depth === 0 ? '1rem' : `${depth * 2 + 1}rem` }}>
                                 <div className="flex items-center gap-2">
                                     {depth > 0 && <Icons.CornerDownRight className="w-4 h-4 text-zinc-600 shrink-0"/>}
@@ -1128,55 +1413,129 @@
 
             const displayItems = isSearching 
                 ? enrichedItems.filter(i => i.sku?.name.toLowerCase().includes(term) || i.sku?.description.toLowerCase().includes(term) || (i.serial && i.serial.toLowerCase().includes(term)))
-                : enrichedItems.filter(i => !i.parentId); // Only top level if not searching
+                : enrichedItems.filter(i => !i.parentId); 
 
             return (
-                <div className="animate-fade-in max-w-5xl mx-auto pb-8">
-                    <header className="mb-8 text-center mt-6">
-                        <Icons.Table className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
-                        <h1 className="text-3xl font-bold mb-2">Data Table Query</h1>
-                        <p className="text-zinc-400">Comprehensive view of all assets with nested hierarchy.</p>
-                    </header>
+                <div className="animate-fade-in flex gap-6 pb-8 max-w-7xl mx-auto">
+                    <div className="flex-1 min-w-0">
+                        <header className="mb-8 text-center mt-6">
+                            <Icons.Table className="w-12 h-12 text-indigo-500 mx-auto mb-4" />
+                            <h1 className="text-3xl font-bold mb-2">Data Table Query</h1>
+                            <p className="text-zinc-400">Comprehensive view of all assets with nested hierarchy.</p>
+                        </header>
 
-                    <div className="relative mb-6">
-                        <input 
-                            type="text" 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search names, descriptions, or serial numbers..." 
-                            className="w-full bg-zinc-900/80 border border-zinc-700/50 rounded-2xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-zinc-500 shadow-xl"
-                        />
-                        <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-500" />
-                    </div>
+                        <div className="relative mb-6">
+                            <input 
+                                type="text" 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search names, descriptions, or serial numbers..." 
+                                className="w-full bg-zinc-900/80 border border-zinc-700/50 rounded-2xl pl-12 pr-4 py-4 text-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-zinc-500 shadow-xl"
+                            />
+                            <Icons.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-500" />
+                        </div>
 
-                    <div className="glass-panel rounded-2xl overflow-hidden border border-zinc-800/50 shadow-2xl">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left whitespace-nowrap">
-                                <thead className="bg-zinc-900/80 border-b border-zinc-800">
-                                    <tr>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1"><Icons.Box className="w-3 h-3"/> Asset Name</th>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Tag className="w-3 h-3 inline mr-1"/> Type</th>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Activity className="w-3 h-3 inline mr-1"/> Status</th>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Map className="w-3 h-3 inline mr-1"/> Location</th>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Hash className="w-3 h-3 inline mr-1"/> Serial</th>
-                                        <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Qty</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {displayItems.length === 0 ? (
+                        <div className="glass-panel rounded-2xl overflow-hidden border border-zinc-800/50 shadow-2xl">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left whitespace-nowrap">
+                                    <thead className="bg-zinc-900/80 border-b border-zinc-800">
                                         <tr>
-                                            <td colSpan="6" className="py-12 text-center text-zinc-500">
-                                                <Icons.Search className="w-8 h-8 mx-auto mb-2 opacity-50"/>
-                                                No results found.
-                                            </td>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1"><Icons.Box className="w-3 h-3"/> Asset Name</th>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Tag className="w-3 h-3 inline mr-1"/> Type</th>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Activity className="w-3 h-3 inline mr-1"/> Status</th>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Map className="w-3 h-3 inline mr-1"/> Location</th>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider"><Icons.Hash className="w-3 h-3 inline mr-1"/> Serial</th>
+                                            <th className="py-4 px-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Qty</th>
                                         </tr>
-                                    ) : (
-                                        displayItems.map(item => renderTreeRow(item, 0))
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {displayItems.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="py-12 text-center text-zinc-500">
+                                                    <Icons.Search className="w-8 h-8 mx-auto mb-2 opacity-50"/>
+                                                    No results found.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            displayItems.map(item => renderTreeRow(item, 0))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Inspection Panel Logic - Cross Platform */}
+                    {inspectionItem && (
+                        <>
+                            {/* Desktop Panel */}
+                            <div className="hidden lg:block w-[340px] shrink-0">
+                                <div className="glass-panel p-6 rounded-3xl sticky top-8 max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl border-indigo-500/10">
+                                    {renderInspectionContent(inspectionItem)}
+                                </div>
+                            </div>
+
+                            {/* Mobile Bottom-Sheet Modal Fallback */}
+                            <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-fade-in pb-16">
+                                <div className="glass-panel w-full rounded-t-3xl p-6 shadow-2xl relative max-h-[85vh] overflow-y-auto no-scrollbar border-t border-zinc-800/50">
+                                    {renderInspectionContent(inspectionItem)}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Edit Modal (Duplicated for seamless editing from Query View) */}
+                    {isModalOpen && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar">
+                                <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white"><Icons.X className="w-6 h-6"/></button>
+                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><Icons.Box className="w-6 h-6 text-indigo-400"/> Edit Item</h2>
+                                
+                                <form onSubmit={handleSave} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">SKU (Template)</label>
+                                        <select required name="skuId" defaultValue={editingItem?.skuId} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                            {db.skus.map(s => <option key={s.id} value={s.id}>{s.name} ({s.type})</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Status</label>
+                                            <select name="status" defaultValue={editingItem?.status || 'Available'} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                {db.statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Location</label>
+                                            <select name="locationId" defaultValue={editingItem?.locationId || db.locations[0]?.id} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                                {db.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1">Kit Parent (Optional)</label>
+                                        <select name="parentId" defaultValue={editingItem?.parentId || ''} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white">
+                                            <option value="">-- Standalone Item --</option>
+                                            {enrichedItems.filter(i => i.id !== editingItem?.id).map(i => (
+                                                <option key={i.id} value={i.id}>{i.sku?.name} ({i.serial || 'Bulk'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Serial Number (Opt)</label>
+                                            <input name="serial" defaultValue={editingItem?.serial} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white font-mono text-sm" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1">Quantity</label>
+                                            <input type="number" min="1" name="quantity" defaultValue={editingItem?.quantity || 1} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 focus:outline-none focus:border-indigo-500 text-white" />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-medium mt-4 transition-all">Save Item Instance</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
