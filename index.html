@@ -68,22 +68,9 @@
     .screen { display: none; }
     .screen.active { display: block; }
     mark { background: rgba(99, 102, 241, 0.35); color: inherit; border-radius: 2px; padding: 0 2px; }
-    .no-fs-api #fs-warning { display: flex; }
-    #fs-warning { display: none; }
   </style>
 </head>
 <body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-indigo-500/40">
-  <!-- FS API unsupported -->
-  <div id="fs-warning" class="fixed inset-0 z-[200] items-center justify-center bg-zinc-950/95 p-6">
-    <div class="max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-8 shadow-glass text-center">
-      <i data-lucide="folder-lock" class="mx-auto mb-4 h-12 w-12 text-indigo-400"></i>
-      <h1 class="text-xl font-bold tracking-tight">File access required</h1>
-      <p class="mt-2 text-sm text-zinc-400">
-        Nexus stores your database in a <strong class="text-zinc-200">local JSON file</strong> using the File System Access API.
-        Use a recent version of <strong class="text-zinc-200">Chrome</strong> or <strong class="text-zinc-200">Edge</strong> on desktop for full support.
-      </p>
-    </div>
-  </div>
 
   <!-- Toast stack -->
   <div id="toast-root" class="fixed bottom-24 md:bottom-8 right-4 z-[150] flex flex-col gap-2 max-w-sm pointer-events-none"></div>
@@ -164,6 +151,10 @@
           <button type="button" id="btn-new-file" class="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold active:scale-95 transition-all duration-300 ease-out">
             <i data-lucide="file-plus" class="h-4 w-4"></i>
             <span class="hidden sm:inline">New JSON</span>
+          </button>
+          <button type="button" id="btn-export-json" class="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-300 active:scale-95 transition-all duration-300 ease-out">
+            <i data-lucide="download" class="h-4 w-4"></i>
+            <span class="hidden sm:inline">Export JSON</span>
           </button>
           <span id="file-name" class="truncate text-sm text-zinc-500 max-w-[10rem] sm:max-w-xs"></span>
         </div>
@@ -465,7 +456,25 @@
   }
 
   async function openFile() {
-    if (!FS_SUPPORTED) return;
+    if (!FS_SUPPORTED) {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = '.json';
+      inp.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (re) => {
+          await loadFromText(re.target.result);
+          document.getElementById('file-name').textContent = file.name;
+          setSynced(false);
+          toast('File loaded (manual mode)', 'ok');
+        };
+        reader.readAsText(file);
+      };
+      inp.click();
+      return;
+    }
     const [handle] = await window.showOpenFilePicker({
       types: [{ description: 'Nexus JSON', accept: { 'application/json': ['.json'] } }],
     });
@@ -478,7 +487,14 @@
   }
 
   async function newFile() {
-    if (!FS_SUPPORTED) return;
+    if (!FS_SUPPORTED) {
+      state = defaultState();
+      ensureDefaults();
+      document.getElementById('file-name').textContent = 'nexus-inventory.json';
+      touch();
+      exportJson();
+      return;
+    }
     fileHandle = await window.showSaveFilePicker({
       suggestedName: 'nexus-inventory.json',
       types: [{ description: 'Nexus JSON', accept: { 'application/json': ['.json'] } }],
@@ -851,7 +867,25 @@
           ${state.categories.map((c) => `<option value="${c.id}" ${c.id === s.categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
         </select></div>
       </div>
-    `, `<button type="button" id="sf-save" class="w-full rounded-2xl bg-indigo-500 py-3 font-bold text-white active:scale-[0.98] transition-all">Save</button>`);
+    `, `
+      <div class="flex gap-2">
+        ${!isNew ? '<button type="button" id="sf-delete" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 font-bold text-red-300 active:scale-[0.98] transition-all"><i data-lucide="trash-2" class="h-5 w-5"></i></button>' : ''}
+        <button type="button" id="sf-save" class="flex-1 rounded-2xl bg-indigo-500 py-3 font-bold text-white active:scale-[0.98] transition-all">Save</button>
+      </div>
+    `);
+
+    if (!isNew) {
+      document.getElementById('sf-delete').onclick = () => {
+        if (state.items.some((i) => i.skuId === s.id)) {
+          return toast('Cannot delete SKU with existing items', 'err');
+        }
+        state.skus = state.skus.filter((x) => x.id !== s.id);
+        logActivity('SKU deleted', 'ok');
+        closeSlide();
+        touch();
+      };
+    }
+
     document.getElementById('sf-save').onclick = () => {
       s.name = document.getElementById('sf-name').value.trim();
       s.type = document.getElementById('sf-type').value;
@@ -863,6 +897,7 @@
       closeSlide();
       touch();
     };
+    lucide.createIcons();
   }
 
   function openItemEditor(it) {
@@ -890,7 +925,23 @@
           <option value="blocked" ${it.stockType === 'blocked' ? 'selected' : ''}>Blocked</option>
         </select></div>
       </div>
-    `, `<button type="button" id="if-save" class="w-full rounded-2xl bg-indigo-500 py-3 font-bold text-white active:scale-[0.98] transition-all">Save</button>`);
+    `, `
+      <div class="flex gap-2">
+        <button type="button" id="if-delete" class="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 font-bold text-red-300 active:scale-[0.98] transition-all"><i data-lucide="trash-2" class="h-5 w-5"></i></button>
+        <button type="button" id="if-save" class="flex-1 rounded-2xl bg-indigo-500 py-3 font-bold text-white active:scale-[0.98] transition-all">Save</button>
+      </div>
+    `);
+
+    document.getElementById('if-delete').onclick = () => {
+      state.items = state.items.filter((x) => x.id !== it.id);
+      state.kitLinks = state.kitLinks.filter((k) => k.parentItemId !== it.id && k.childItemId !== it.id);
+      state.reservations = state.reservations.filter((r) => r.itemId !== it.id);
+      state.movementLog = state.movementLog.filter((m) => m.itemId !== it.id);
+      logActivity('Item deleted', 'ok');
+      closeSlide();
+      touch();
+    };
+
     document.getElementById('if-save').onclick = () => {
       if (sku && sku.type === 'serialized') {
         it.serialNo = document.getElementById('if-serial').value.trim();
@@ -904,6 +955,7 @@
       setItemStatusCascade(it.id, newSt);
       closeSlide();
     };
+    lucide.createIcons();
   }
 
   function openKitLinker(childItem) {
@@ -1033,10 +1085,27 @@
             <i data-lucide="grip-vertical" class="h-4 w-4 text-zinc-600 shrink-0 cursor-grab"></i>
             <span class="font-bold truncate">${escapeHtml(loc.name)}</span>
           </div>
-          <span class="text-xs text-zinc-500">${itemsAtLocation(loc.id).length} items</span>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-zinc-500">${itemsAtLocation(loc.id).length} items</span>
+            ${loc.parentId !== null && loc.id !== UNSORTED_LOC_ID ? `<button type="button" class="text-red-400 p-1 hover:bg-white/10 rounded-lg transition-all btn-del-loc" aria-label="Delete location"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i></button>` : ''}
+          </div>
         </div>
         <ul class="mt-2 text-xs text-zinc-400 space-y-1 max-h-24 overflow-y-auto"></ul>
       `;
+
+      const delBtn = row.querySelector('.btn-del-loc');
+      if (delBtn) {
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          const targetParentId = loc.parentId || UNSORTED_LOC_ID;
+          state.items.filter((i) => i.locationId === loc.id).forEach((i) => i.locationId = targetParentId);
+          state.locations.filter((l) => l.parentId === loc.id).forEach((l) => l.parentId = targetParentId);
+          state.locations = state.locations.filter((l) => l.id !== loc.id);
+          logActivity('Location deleted and contents reparented', 'ok');
+          touch();
+        };
+      }
+
       const ul = row.querySelector('ul');
       itemsAtLocation(loc.id).forEach((it) => {
         const sku = skuById(it.skuId);
@@ -1165,11 +1234,20 @@
       if (c.id === UNCATEGORIZED_ID) return;
       const row = document.createElement('div');
       row.className = 'flex gap-2 items-center';
-      row.innerHTML = `<input data-cid="${c.id}" class="flex-1 rounded-xl bg-zinc-900 border border-white/10 px-3 py-2 text-sm" value="${escapeHtml(c.name)}" />`;
+      row.innerHTML = `
+        <input data-cid="${c.id}" class="flex-1 rounded-xl bg-zinc-900 border border-white/10 px-3 py-2 text-sm" value="${escapeHtml(c.name)}" />
+        <button type="button" class="text-red-400 p-2 hover:bg-white/5 rounded-xl transition-all" aria-label="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+      `;
       const inp = row.querySelector('input');
       inp.onchange = () => {
         c.name = inp.value.trim() || c.name;
         logActivity('Category renamed', 'ok');
+        touch();
+      };
+      row.querySelector('button').onclick = () => {
+        if (state.skus.some((s) => s.categoryId === c.id)) return toast('Category in use by SKUs', 'err');
+        state.categories = state.categories.filter((x) => x.id !== c.id);
+        logActivity('Category deleted', 'ok');
         touch();
       };
       catEl.appendChild(row);
@@ -1180,14 +1258,25 @@
     state.statusTags.forEach((s) => {
       const row = document.createElement('div');
       row.className = 'flex gap-2 items-center';
-      row.innerHTML = `<span class="text-xs font-mono text-zinc-500 w-24">${s.id}</span><input data-sid="${s.id}" class="flex-1 rounded-xl bg-zinc-900 border border-white/10 px-3 py-2 text-sm" value="${escapeHtml(s.name)}" />`;
+      row.innerHTML = `
+        <span class="text-xs font-mono text-zinc-500 w-24">${s.id}</span>
+        <input data-sid="${s.id}" class="flex-1 rounded-xl bg-zinc-900 border border-white/10 px-3 py-2 text-sm" value="${escapeHtml(s.name)}" />
+        <button type="button" class="text-red-400 p-2 hover:bg-white/5 rounded-xl transition-all" aria-label="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+      `;
       row.querySelector('input').onchange = (e) => {
         s.name = e.target.value.trim() || s.name;
         logActivity('Status tag updated', 'ok');
         touch();
       };
+      row.querySelector('button').onclick = () => {
+        if (state.items.some((i) => i.status === s.id)) return toast('Status in use by items', 'err');
+        state.statusTags = state.statusTags.filter((x) => x.id !== s.id);
+        logActivity('Status tag deleted', 'ok');
+        touch();
+      };
       stEl.appendChild(row);
     });
+    lucide.createIcons();
   }
 
   function renderAll() {
@@ -1308,8 +1397,21 @@
     });
   });
 
+  function exportJson() {
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = document.getElementById('file-name').textContent || 'nexus-inventory.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('JSON exported', 'ok');
+  }
+
   document.getElementById('btn-open-file').onclick = openFile;
   document.getElementById('btn-new-file').onclick = newFile;
+  document.getElementById('btn-export-json').onclick = exportJson;
   document.getElementById('btn-add-sku').onclick = () => openSkuEditor(null);
   document.getElementById('btn-add-item').onclick = registerItemFlow;
   document.getElementById('btn-post-global-movement').onclick = () => openMovementPoster(null);
